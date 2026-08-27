@@ -1,3 +1,4 @@
+local hl = require("hyprland")
 local function replace(keys, description, dispatcher, options)
 	hl.unbind(keys)
 	o.bind(keys, description, dispatcher, options)
@@ -106,3 +107,5 @@ replace("SUPER + SHIFT + U", "Move window to special workspace", hl.dsp.window.m
 
 hl.unbind("F9")
 
+
+hl.bind(mainMod .. " + Q", hl.dsp.exec_cmd(Terminal))

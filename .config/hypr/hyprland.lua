@@ -34,9 +34,9 @@ hl.monitor({
 ---------------------
 
 -- Set programs that you use
-local terminal    = "ghostty"
-local fileManager = "dolphin"
-local menu        = "hyprlauncher"
+Terminal    = "ghostty"
+FileManager = "dolphin"
+Menu        = "hyprlauncher"
 
 
 -------------------
@@ -257,7 +257,7 @@ hl.device({
 ---- KEYBINDINGS ----
 ---------------------
 
-local mainMod = "SUPER" -- Sets "Windows" key as main modifier
+mainMod = "SUPER" -- Sets "Windows" key as main modifier
 
 -- -- Example binds, see https://wiki.hypr.land/Configuring/Basics/Binds/ for more
 -- hl.bind(mainMod .. " + Q", hl.dsp.exec_cmd(terminal))
