@@ -1,0 +1,9 @@
+# Hardware and laptop support
+amd-ucode
+intel-ucode
+bluez
+bluez-utils
+brightnessctl
+fwupd
+power-profiles-daemon
+upower

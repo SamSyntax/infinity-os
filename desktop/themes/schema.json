@@ -1,0 +1,29 @@
+{
+  "required": ["id", "name", "mode", "license", "palette", "fonts", "icons", "gtk", "qt", "terminal", "tmux", "neovim", "hyprland", "quickshell", "lock", "greeter", "plymouth", "wallpaper"],
+  "modes": ["dark", "light"],
+  "colorKeys": ["background", "surface", "surfaceAlt", "text", "muted", "accent", "accentAlt", "border", "warning", "error", "success"],
+  "nestedRequired": {
+    "fonts": ["ui", "display", "mono", "size"],
+    "icons": ["iconTheme", "cursorTheme"],
+    "gtk": ["theme", "preferDark"],
+    "qt": ["style", "colorScheme"],
+    "terminal": ["background", "foreground", "accent"],
+    "tmux": ["statusBg", "statusFg", "accent"],
+    "neovim": ["flavor", "accent"],
+    "hyprland": ["activeBorder", "inactiveBorder", "rounding", "blur"],
+    "quickshell": ["radius", "opacity", "easing", "durationMs"],
+    "lock": ["background", "text"],
+    "greeter": ["background", "text"],
+    "plymouth": ["top", "bottom", "text"],
+    "wallpaper": ["path", "license", "author", "title"]
+  },
+  "colorFields": {
+    "terminal": ["background", "foreground", "accent"],
+    "tmux": ["statusBg", "statusFg", "accent"],
+    "neovim": ["accent"],
+    "hyprland": ["inactiveBorder"],
+    "lock": ["background", "text"],
+    "greeter": ["background", "text"],
+    "plymouth": ["top", "bottom", "text"]
+  }
+}

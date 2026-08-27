@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Original dark abstract Infinity OS wallpaper">
+  <rect width="1600" height="900" fill="#070914"/>
+  <path d="M0 680 C360 520 520 810 900 620 C1160 490 1340 460 1600 540 L1600 900 L0 900 Z" fill="#101522"/>
+  <circle cx="1130" cy="270" r="190" fill="#7ea6c9" opacity="0.18"/>
+  <circle cx="1240" cy="330" r="260" fill="#6f879c" opacity="0.12"/>
+  <path d="M260 220 C520 130 730 160 980 80" fill="none" stroke="#7ea6c9" stroke-width="3" opacity="0.35"/>
+</svg>

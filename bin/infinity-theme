@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import os
+import shutil
+import sys
+import tempfile
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+THEMES = REPO / "desktop" / "themes"
+
+def load_theme(theme_id):
+    path = THEMES / f"{theme_id}.json"
+    if not path.exists():
+        raise SystemExit(f"unknown theme: {theme_id}")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+def theme_files():
+    return sorted(p for p in THEMES.glob("*.json") if p.name != "schema.json")
+
+def command_list(_args):
+    for path in theme_files():
+        theme = json.loads(path.read_text(encoding="utf-8"))
+        print(f"{theme['id']}\t{theme['mode']}\t{theme['name']}")
+
+def command_preview(args):
+    theme = load_theme(args.theme)
+    print(json.dumps({
+        "id": theme["id"],
+        "name": theme["name"],
+        "mode": theme["mode"],
+        "palette": theme["palette"],
+        "wallpaper": theme["wallpaper"],
+    }, indent=2, sort_keys=True))
+
+def target_home(root, user):
+    if root == Path("/"):
+        return root / "home" / user
+    return root / "home" / user
+
+def write_text(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(data, encoding="utf-8")
+
+def snapshot_destinations(home, relatives):
+    snapshots = {}
+    for rel in relatives:
+        dest = home / rel
+        snapshots[dest] = dest.read_bytes() if dest.exists() else None
+    return snapshots
+
+def restore_destinations(snapshots):
+    for dest, content in snapshots.items():
+        if content is None:
+            if dest.exists():
+                dest.unlink()
+        else:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            tmp = dest.with_name(dest.name + ".rollback")
+            tmp.write_bytes(content)
+            os.replace(tmp, dest)
+
+def promote_staged_files(staging, home, fail_after):
+    promoted = 0
+    for item in sorted(staging.rglob("*")):
+        if item.is_file():
+            dest = home / item.relative_to(staging)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            tmp = dest.with_name(dest.name + ".tmp")
+            shutil.copy2(item, tmp)
+            os.replace(tmp, dest)
+            promoted += 1
+            if fail_after is not None and promoted >= fail_after:
+                raise RuntimeError(f"test fault after {promoted} theme updates")
+
+def render_files(theme):
+    palette = theme["palette"]
+    active = " ".join(theme["hyprland"]["activeBorder"])
+    return {
+        ".config/infinity-os/theme.json": json.dumps(theme, indent=2, sort_keys=True) + "\n",
+        ".config/quickshell/generated/theme.json": json.dumps(theme["quickshell"] | {"palette": palette}, indent=2, sort_keys=True) + "\n",
+        ".config/hypr/generated-theme.conf": f"$infinity_active_border = {active}\n$infinity_inactive_border = {theme['hyprland']['inactiveBorder']}\n",
+        ".config/ghostty/themes/infinity.conf": f"background = {theme['terminal']['background']}\nforeground = {theme['terminal']['foreground']}\npalette = 4={theme['terminal']['accent']}\n",
+        ".config/tmux/infinity-theme.conf": f"set -g status-bg '{theme['tmux']['statusBg']}'\nset -g status-fg '{theme['tmux']['statusFg']}'\n",
+        ".config/nvim/lua/infinity_theme.lua": f"return {{ flavor = '{theme['neovim']['flavor']}', accent = '{theme['neovim']['accent']}' }}\n",
+        ".local/share/infinity-os/current-theme": theme["id"] + "\n",
+    }
+
+def command_apply(args):
+    theme = load_theme(args.theme)
+    root = Path(args.target_root).resolve()
+    home = target_home(root, args.target_user)
+    files = render_files(theme)
+    wallpaper_src = REPO / theme["wallpaper"]["path"]
+    wallpaper_rel = ".local/share/infinity-os/current-wallpaper.svg"
+    if args.dry_run:
+        print(f"DRY-RUN apply theme {theme['id']} to {home}")
+        for rel in sorted(files):
+            print(f"PLAN write {home / rel}")
+        print(f"PLAN copy {wallpaper_src} -> {home / wallpaper_rel}")
+        return
+    staging = Path(tempfile.mkdtemp(prefix="infinity-theme-stage-", dir=str(root / "tmp" if (root / "tmp").exists() else None)))
+    snapshots = snapshot_destinations(home, [*files.keys(), wallpaper_rel])
+    try:
+        for rel, data in files.items():
+            write_text(staging / rel, data)
+        wallpaper_target = staging / wallpaper_rel
+        wallpaper_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(wallpaper_src, wallpaper_target)
+        promote_staged_files(staging, home, args.test_fail_after)
+        print(f"applied theme {theme['id']} to {home}")
+    except Exception as error:
+        restore_destinations(snapshots)
+        raise SystemExit(f"theme apply failed and rollback completed: {error}") from error
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+def main():
+    parser = argparse.ArgumentParser(prog="infinity-theme")
+    sub = parser.add_subparsers(required=True)
+    p_list = sub.add_parser("list")
+    p_list.set_defaults(func=command_list)
+    p_preview = sub.add_parser("preview")
+    p_preview.add_argument("theme")
+    p_preview.set_defaults(func=command_preview)
+    p_apply = sub.add_parser("apply")
+    p_apply.add_argument("theme")
+    p_apply.add_argument("--dry-run", action="store_true")
+    p_apply.add_argument("--target-root", default="/")
+    p_apply.add_argument("--target-user", default=os.environ.get("USER", "user"))
+    p_apply.add_argument("--test-fail-after", type=int, default=None, help=argparse.SUPPRESS)
+    p_apply.set_defaults(func=command_apply)
+    args = parser.parse_args()
+    args.func(args)
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,9 @@
+# Wayland compositor and portals
+hyprland
+hypridle
+hyprlock
+xdg-desktop-portal
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+qt5-wayland
+qt6-wayland

@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Infinity
+Description=Original Infinity OS text-first boot theme
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/infinity
+ScriptFile=/usr/share/plymouth/themes/infinity/infinity.script

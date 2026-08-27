@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Original monochrome abstract signal sculpture wallpaper">
+  <defs>
+    <pattern id="microdots" width="8" height="8" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.15" fill="#d8d3c8"/>
+      <circle cx="6" cy="6" r="0.55" fill="#817d75"/>
+    </pattern>
+    <pattern id="scan" width="5" height="5" patternUnits="userSpaceOnUse">
+      <rect width="5" height="1" fill="#d8d3c8" opacity="0.2"/>
+    </pattern>
+    <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="3" seed="41" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="mono"/>
+      <feComponentTransfer in="mono"><feFuncA type="table" tableValues="0 0.13"/></feComponentTransfer>
+    </filter>
+    <clipPath id="sculpture">
+      <path d="M1105 92 C1244 70 1392 160 1394 310 C1395 405 1344 451 1298 493 C1350 544 1445 605 1462 745 C1337 820 1178 807 1069 745 C1012 712 981 653 997 596 C1014 538 1071 513 1099 475 C1030 422 984 356 990 269 C996 184 1032 116 1105 92 Z"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1600" height="900" fill="#090909"/>
+  <rect width="1600" height="900" fill="#ffffff" filter="url(#paper)" opacity="0.42"/>
+
+  <g stroke="#34322f" fill="none">
+    <path d="M72 70 H742"/>
+    <path d="M72 760 H760"/>
+    <path d="M874 68 V820" opacity="0.5"/>
+    <circle cx="1184" cy="410" r="322"/>
+    <circle cx="1184" cy="410" r="246" stroke-dasharray="2 11"/>
+  </g>
+
+  <g fill="#d8d3c8">
+    <text x="74" y="112" font-family="IBM Plex Mono" font-size="13" letter-spacing="5">INFINITY / SIGNAL DOSSIER</text>
+    <text x="74" y="196" font-family="IBM Plex Serif" font-size="86">Signal Archive</text>
+    <text x="78" y="232" font-family="IBM Plex Mono" font-size="12" letter-spacing="3" fill="#817d75">EDITION 01 · MONOCHROME TRANSMISSION</text>
+  </g>
+
+  <g transform="translate(74 310)" font-family="IBM Plex Mono" font-size="12">
+    <g fill="#817d75"><text y="0">FIELD</text><text y="42">MATERIAL</text><text y="84">PROCESS</text><text y="126">SIGNAL</text><text y="168">STATE</text></g>
+    <g fill="#d8d3c8" text-anchor="end"><text x="664" y="0">ABSTRACT FORM</text><text x="664" y="42">DIGITAL PAPER</text><text x="664" y="84">HALFTONE / DISPLACE</text><text x="664" y="126">41.82 KHZ</text><text x="664" y="168">STABLE</text></g>
+    <g stroke="#34322f"><path d="M0 14 H664"/><path d="M0 56 H664"/><path d="M0 98 H664"/><path d="M0 140 H664"/><path d="M0 182 H664"/></g>
+  </g>
+
+  <g clip-path="url(#sculpture)">
+    <rect x="952" y="70" width="550" height="760" fill="url(#microdots)"/>
+    <path d="M1050 112 L1435 246 L1010 350 L1448 510 L1018 650 L1422 782" fill="none" stroke="#d8d3c8" stroke-width="28" opacity="0.12"/>
+    <rect x="958" y="270" width="560" height="34" fill="#090909" opacity="0.82"/>
+    <rect x="930" y="425" width="590" height="17" fill="#090909" opacity="0.9"/>
+    <rect x="975" y="598" width="535" height="28" fill="#090909" opacity="0.78"/>
+    <rect x="960" y="70" width="550" height="760" fill="url(#scan)" opacity="0.45"/>
+  </g>
+
+  <g fill="none" stroke="#d8d3c8" opacity="0.5">
+    <path d="M1000 285 H1462" stroke-dasharray="55 8 13 18"/>
+    <path d="M962 437 H1494" stroke-dasharray="9 4 92 17"/>
+    <path d="M1018 612 H1478" stroke-dasharray="120 7 21 12"/>
+  </g>
+  <g fill="#090909">
+    <rect x="1066" y="278" width="128" height="20"/>
+    <rect x="1298" y="429" width="97" height="16"/>
+    <rect x="1160" y="602" width="154" height="23"/>
+  </g>
+  <g fill="#d8d3c8" font-family="IBM Plex Mono" font-size="10" letter-spacing="3">
+    <text x="1020" y="850">FORM 001 / OFFSET 41</text>
+    <text x="1370" y="78">GRAIN 82%</text>
+    <text x="74" y="806">NO. 0001</text>
+  </g>
+  <g transform="translate(74 716)" fill="#d8d3c8">
+    <rect width="9" height="30"/><rect x="14" width="3" height="30"/><rect x="23" width="7" height="30"/><rect x="35" width="2" height="30"/><rect x="43" width="12" height="30"/><rect x="61" width="4" height="30"/><rect x="71" width="2" height="30"/><rect x="80" width="9" height="30"/><rect x="95" width="4" height="30"/><rect x="105" width="14" height="30"/><rect x="125" width="3" height="30"/><rect x="136" width="7" height="30"/><rect x="149" width="2" height="30"/><rect x="157" width="11" height="30"/><rect x="174" width="5" height="30"/><rect x="185" width="2" height="30"/><rect x="193" width="12" height="30"/><rect x="211" width="4" height="30"/><rect x="222" width="9" height="30"/>
+  </g>
+</svg>

@@ -1,0 +1,13 @@
+[background]
+path = "/usr/share/infinity-os/wallpapers/nocturne.svg"
+fit = "Cover"
+
+[GTK]
+application_prefer_dark_theme = true
+theme_name = "Adwaita"
+icon_theme_name = "Papirus-Dark"
+cursor_theme_name = "Bibata-Modern-Ice"
+
+[commands]
+reboot = ["systemctl", "reboot"]
+poweroff = ["systemctl", "poweroff"]

@@ -1,0 +1,15 @@
+# User applications
+firefox
+ghostty
+kitty
+nautilus
+neovim
+obsidian
+keepassxc
+tmux
+fish
+lazydocker
+playerctl
+pipewire
+pipewire-pulse
+wireplumber

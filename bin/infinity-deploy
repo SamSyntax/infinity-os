@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import os
+import shutil
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+MAPPINGS = REPO / "deployment" / "mappings.tsv"
+
+
+def parse_mappings():
+    rows = []
+    for line_no, line in enumerate(
+        MAPPINGS.read_text(encoding="utf-8").splitlines(), 1
+    ):
+        if not line.strip() or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) != 4:
+            raise SystemExit(
+                f"bad mapping line {line_no}: expected 4 tab-separated fields"
+            )
+        rows.append(tuple(parts))
+    return rows
+
+
+def copy_path(src, dest, mode):
+    if src.is_dir():
+        for item in src.rglob("*"):
+            if item.is_file():
+                child = dest / item.relative_to(src)
+                child.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(item, child)
+                os.chmod(child, int(mode, 8))
+    else:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+        os.chmod(dest, int(mode, 8))
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="infinity-deploy")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--target-root", default="/")
+    parser.add_argument("--target-user", default=os.environ.get("USER", "user"))
+    args = parser.parse_args()
+    root = Path(args.target_root).resolve()
+    home = root / "home" / args.target_user
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    manifest = {"timestamp": stamp, "targetUser": args.target_user, "files": []}
+    for src_rel, target_rel, mode, preserve in parse_mappings():
+        src = REPO / src_rel
+        if not src.exists():
+            raise SystemExit(f"mapping source missing: {src_rel}")
+        dest = (
+            (root / target_rel)
+            if target_rel.startswith("etc/")
+            else (home / target_rel)
+        )
+        if args.dry_run:
+            print(
+                f"PLAN deploy {src_rel} -> {dest} mode={mode} preserve_override={
+                    preserve
+                }"
+            )
+            continue
+        if dest.exists() and preserve == "yes":
+            backup = home / ".local/share/infinity-os/backups" / stamp / target_rel
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            if dest.is_dir():
+                shutil.copytree(dest, backup, dirs_exist_ok=True)
+            else:
+                shutil.copy2(dest, backup)
+        copy_path(src, dest, mode)
+        manifest["files"].append({"source": src_rel, "target": str(dest), "mode": mode})
+    if not args.dry_run:
+        manifest_path = home / ".local/share/infinity-os/deployment-manifest.json"
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+
+
+if __name__ == "__main__":
+    main()

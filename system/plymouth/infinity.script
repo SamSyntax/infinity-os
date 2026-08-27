@@ -1,0 +1,6 @@
+Window.SetBackgroundTopColor(0.02, 0.03, 0.06);
+Window.SetBackgroundBottomColor(0.08, 0.09, 0.14);
+message = Image.Text("Infinity OS", 1, 1, 1);
+sprite = Sprite(message);
+sprite.SetX(Window.GetWidth() / 2 - message.GetWidth() / 2);
+sprite.SetY(Window.GetHeight() / 2 - message.GetHeight() / 2);

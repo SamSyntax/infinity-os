@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+target_dir=${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots
+mkdir -p "$target_dir"
+target="$target_dir/infinity-$(date +%Y%m%d-%H%M%S).png"
+grim -g "$(slurp)" "$target"
+if command -v swappy >/dev/null 2>&1; then
+  swappy -f "$target"
+else
+  notify-send "Screenshot saved" "$target"
+fi

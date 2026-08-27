@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+failures = []
+
+def ok(name):
+    print(f"ok: {name}")
+
+def fail(name, message):
+    failures.append(f"{name}: {message}")
+    print(f"fail: {name}: {message}")
+
+def run(name, cmd):
+    env = os.environ | {"PYTHONDONTWRITEBYTECODE": "1"}
+    result = subprocess.run(cmd, cwd=REPO, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
+    if result.returncode == 0:
+        ok(name)
+    else:
+        fail(name, result.stdout.strip())
+
+def shell_syntax():
+    scripts = [REPO / "install.sh", *sorted((REPO / "bin").glob("infinity-*")), REPO / "installation/lib/installer.sh"]
+    for script in scripts:
+        if script.suffix == ".py":
+            continue
+        first = script.read_text(encoding="utf-8").splitlines()[0]
+        if "bash" in first:
+            run(f"shell syntax {script.relative_to(REPO)}", ["bash", "-n", str(script)])
+
+def python_syntax():
+    scripts = sorted((REPO / "bin").glob("infinity-*"))
+    for script in scripts:
+        first = script.read_text(encoding="utf-8").splitlines()[0]
+        if "python3" in first:
+            try:
+                compile(script.read_text(encoding="utf-8"), str(script), "exec")
+                ok(f"python syntax {script.relative_to(REPO)}")
+            except SyntaxError as error:
+                fail(f"python syntax {script.relative_to(REPO)}", str(error))
+
+def lua_syntax():
+    lua = shutil.which("luac") or shutil.which("lua")
+    if not lua:
+        print("skip: Lua syntax, no lua/luac interpreter present")
+        return
+    for path in sorted((REPO / "desktop/hypr").rglob("*.lua")):
+        cmd = [lua, "-p", str(path)] if Path(lua).name == "luac" else [lua, "-e", "assert(loadfile(arg[1]))", str(path)]
+        run(f"lua syntax {path.relative_to(REPO)}", cmd)
+
+def package_manifests():
+    seen = {}
+    pattern = re.compile(r"^[a-z0-9@._+-]+$")
+    for path in sorted((REPO / "system/packages").glob("*.txt")):
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            item = line.split("#", 1)[0].strip()
+            if not item:
+                continue
+            if not pattern.match(item):
+                fail("package manifests", f"invalid package {item} at {path}:{line_no}")
+            if item in seen:
+                fail("package manifests", f"duplicate package {item} in {path} and {seen[item]}")
+            seen[item] = path
+    if not any(f.startswith("package manifests") for f in failures):
+        ok("package manifests")
+
+def themes():
+    schema = json.loads((REPO / "desktop/themes/schema.json").read_text(encoding="utf-8"))
+    required = set(schema["required"])
+    color_keys = set(schema["colorKeys"])
+    nested = schema["nestedRequired"]
+    color_fields = schema["colorFields"]
+    hex_color = re.compile(r"^#[0-9a-fA-F]{6}$")
+    for path in sorted((REPO / "desktop/themes").glob("*.json")):
+        if path.name == "schema.json":
+            continue
+        data = json.loads(path.read_text(encoding="utf-8"))
+        missing = required - data.keys()
+        if missing:
+            fail("themes", f"{path.name} missing {sorted(missing)}")
+        if data.get("mode") not in schema["modes"]:
+            fail("themes", f"{path.name} invalid mode")
+        if color_keys - data.get("palette", {}).keys():
+            fail("themes", f"{path.name} missing palette keys")
+        for key, value in data.get("palette", {}).items():
+            if key in color_keys and not isinstance(value, str):
+                fail("themes", f"{path.name} palette {key} must be a string")
+            if key in color_keys and isinstance(value, str) and not hex_color.match(value):
+                fail("themes", f"{path.name} palette {key} must be #RRGGBB")
+        for section, keys in nested.items():
+            value = data.get(section)
+            if not isinstance(value, dict):
+                fail("themes", f"{path.name} section {section} must be an object")
+                continue
+            missing_nested = set(keys) - value.keys()
+            if missing_nested:
+                fail("themes", f"{path.name} section {section} missing {sorted(missing_nested)}")
+        for section, keys in color_fields.items():
+            value = data.get(section, {})
+            if isinstance(value, dict):
+                for key in keys:
+                    color = value.get(key)
+                    if not isinstance(color, str) or not hex_color.match(color):
+                        fail("themes", f"{path.name} {section}.{key} must be #RRGGBB")
+        active_border = data.get("hyprland", {}).get("activeBorder")
+        if not isinstance(active_border, list) or len(active_border) != 2 or any(not isinstance(item, str) or not hex_color.match(item) for item in active_border):
+            fail("themes", f"{path.name} hyprland.activeBorder must be two #RRGGBB colors")
+        numeric_fields = [("fonts", "size"), ("hyprland", "rounding"), ("quickshell", "radius"), ("quickshell", "opacity"), ("quickshell", "durationMs")]
+        for section, key in numeric_fields:
+            if not isinstance(data.get(section, {}).get(key), (int, float)):
+                fail("themes", f"{path.name} {section}.{key} must be numeric")
+        bool_fields = [("gtk", "preferDark"), ("hyprland", "blur")]
+        for section, key in bool_fields:
+            if not isinstance(data.get(section, {}).get(key), bool):
+                fail("themes", f"{path.name} {section}.{key} must be boolean")
+        wallpaper = REPO / data["wallpaper"]["path"]
+        if not wallpaper.exists():
+            fail("themes", f"{path.name} wallpaper missing {wallpaper}")
+        if not str(data["wallpaper"].get("path", "")).startswith("desktop/wallpapers/"):
+            fail("themes", f"{path.name} wallpaper path must stay under desktop/wallpapers")
+        for key in ["license", "author", "title"]:
+            if not isinstance(data["wallpaper"].get(key), str) or not data["wallpaper"].get(key):
+                fail("themes", f"{path.name} wallpaper {key} must be non-empty")
+    if not any(f.startswith("themes") for f in failures):
+        ok("themes")
+
+def mappings():
+    targets = set()
+    for line_no, line in enumerate((REPO / "deployment/mappings.tsv").read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip() or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) != 4:
+            fail("deployment mappings", f"line {line_no} must have 4 fields")
+            continue
+        src, target, mode, preserve = parts
+        if not (REPO / src).exists():
+            fail("deployment mappings", f"missing source {src}")
+        if target in targets:
+            fail("deployment mappings", f"duplicate target {target}")
+        targets.add(target)
+        if not re.match(r"^0[0-7]{3}$", mode):
+            fail("deployment mappings", f"bad mode {mode}")
+        if preserve not in {"yes", "no"}:
+            fail("deployment mappings", f"bad preserve flag {preserve}")
+    if not any(f.startswith("deployment mappings") for f in failures):
+        ok("deployment mappings")
+
+def duplicate_bindings():
+    path = REPO / "desktop/hypr/modules/bindings.lua"
+    keys = re.findall(r'o\.replace\("([^"]+)"', path.read_text(encoding="utf-8"))
+    dupes = sorted(k for k in set(keys) if keys.count(k) > 1)
+    if dupes:
+        fail("duplicate keybindings", ", ".join(dupes))
+    else:
+        ok("duplicate keybindings")
+
+def command_refs():
+    allowed = {p.name for p in (REPO / "bin").glob("infinity-*")}
+    packages = set()
+    for path in (REPO / "system/packages").glob("*.txt"):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            item = line.split("#", 1)[0].strip()
+            if item:
+                packages.add(item)
+    commands = {"ghostty", "uwsm", "nautilus", "lazydocker", "obsidian", "keepassxc", "xdg-open", "walker", "cliphist", "wl-copy", "quickshell", "hyprctl", "hypridle", "systemctl", "dbus-update-activation-environment"}
+    provided = {"uwsm", "xdg-open", "systemctl", "dbus-update-activation-environment", "hyprctl", "wl-copy"}
+    missing = sorted((commands - packages - allowed) - provided)
+    if missing:
+        fail("command references", f"not covered by manifests or allowlist: {missing}")
+    else:
+        ok("command references")
+
+def qml_hook():
+    qmlformat = shutil.which("qmlformat")
+    if not qmlformat:
+        print("skip: QML static check, qmlformat not present")
+        return
+    for path in sorted((REPO / "desktop/quickshell").rglob("*.qml")):
+        run(f"qml format check {path.relative_to(REPO)}", [qmlformat, "-n", str(path)])
+
+def installer_dry_run():
+    with tempfile.TemporaryDirectory(prefix="infinity-validate-") as tmp:
+        run("installer dry-run", [str(REPO / "install.sh"), "--plan", "--target-root", tmp, "--target-user", "testuser", "--stage", "preflight"])
+
+def repository_tests():
+    for path in sorted((REPO / "tests").glob("test_*.py")):
+        run(f"test {path.relative_to(REPO)}", [sys.executable, str(path)])
+
+def main():
+    shell_syntax()
+    python_syntax()
+    lua_syntax()
+    package_manifests()
+    themes()
+    mappings()
+    duplicate_bindings()
+    command_refs()
+    qml_hook()
+    installer_dry_run()
+    repository_tests()
+    if failures:
+        print("\n".join(failures), file=sys.stderr)
+        raise SystemExit(1)
+
+if __name__ == "__main__":
+    main()

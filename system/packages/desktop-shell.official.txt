@@ -1,0 +1,15 @@
+# Shell surfaces and desktop essentials
+quickshell
+greetd
+greetd-regreet
+tuigreet
+plymouth
+walker
+cliphist
+grim
+slurp
+swappy
+wl-clipboard
+wf-recorder
+libnotify
+ttf-ibm-plex

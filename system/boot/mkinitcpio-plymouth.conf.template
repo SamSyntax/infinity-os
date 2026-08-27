@@ -1,0 +1,3 @@
+# Merge into /etc/mkinitcpio.conf manually or through a reviewed installer stage.
+# Does not assume encryption, resume, or a specific root device.
+HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck plymouth)

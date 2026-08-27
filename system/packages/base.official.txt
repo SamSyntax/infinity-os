@@ -1,0 +1,12 @@
+# Base system and operations
+base-devel
+curl
+git
+man-db
+man-pages
+networkmanager
+openssh
+rsync
+sudo
+unzip
+zip

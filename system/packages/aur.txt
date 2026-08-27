@@ -1,0 +1,2 @@
+# AUR packages are intentionally sparse and optional.
+# Add only real package names after an implementation needs them.

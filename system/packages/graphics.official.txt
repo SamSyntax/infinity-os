@@ -1,0 +1,7 @@
+# Conditional graphics packages; installer plans by detected hardware
+mesa
+vulkan-radeon
+vulkan-intel
+nvidia
+nvidia-utils
+nvidia-settings

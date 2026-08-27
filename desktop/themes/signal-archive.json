@@ -1,0 +1,32 @@
+{
+  "id": "signal-archive",
+  "name": "Signal Archive",
+  "mode": "dark",
+  "license": "CC0-1.0 original repository-authored theme",
+  "palette": {
+    "background": "#090909",
+    "surface": "#111110",
+    "surfaceAlt": "#1a1917",
+    "text": "#d8d3c8",
+    "muted": "#817d75",
+    "accent": "#c8c1b4",
+    "accentAlt": "#9b968d",
+    "border": "#34322f",
+    "warning": "#b39a70",
+    "error": "#ad7470",
+    "success": "#819783"
+  },
+  "fonts": { "ui": "IBM Plex Sans", "display": "IBM Plex Serif", "mono": "IBM Plex Mono", "size": 11 },
+  "icons": { "iconTheme": "Papirus-Dark", "cursorTheme": "Bibata-Modern-Ice" },
+  "gtk": { "theme": "Adwaita-dark", "preferDark": true },
+  "qt": { "style": "kvantum", "colorScheme": "dark" },
+  "terminal": { "background": "#090909", "foreground": "#d8d3c8", "accent": "#c8c1b4" },
+  "tmux": { "statusBg": "#111110", "statusFg": "#d8d3c8", "accent": "#c8c1b4" },
+  "neovim": { "flavor": "dark", "accent": "#c8c1b4" },
+  "hyprland": { "activeBorder": ["#c8c1b4", "#9b968d"], "inactiveBorder": "#34322f", "rounding": 4, "blur": false },
+  "quickshell": { "radius": 5, "opacity": 0.94, "easing": "cubic-bezier(0.16, 1, 0.3, 1)", "durationMs": 190 },
+  "lock": { "background": "#090909", "text": "#d8d3c8" },
+  "greeter": { "background": "#090909", "text": "#d8d3c8" },
+  "plymouth": { "top": "#090909", "bottom": "#111110", "text": "#d8d3c8" },
+  "wallpaper": { "path": "desktop/wallpapers/signal-archive.svg", "license": "CC0-1.0", "author": "Infinity OS contributors", "title": "Signal Archive No. 01" }
+}

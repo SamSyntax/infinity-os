@@ -1,0 +1,10 @@
+[terminal]
+vt = 1
+
+[default_session]
+command = "regreet"
+user = "greeter"
+
+[initial_session]
+command = "Hyprland"
+user = "@TARGET_USER@"
