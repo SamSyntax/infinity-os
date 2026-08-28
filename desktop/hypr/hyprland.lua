@@ -12,5 +12,3 @@ require("modules.autostart")
 require("modules.bindings")
 require("modules.device_overrides")
 require("modules.user_overrides")
-
-return hl

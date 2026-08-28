@@ -29,7 +29,6 @@ def main():
                 'package.path = root .. "/?.lua;" .. root .. "/?/init.lua;" .. package.path',
                 'local loaded, result = pcall(dofile, root .. "/hyprland.lua")',
                 "if not loaded then error(result) end",
-                'if result ~= hl then error("hyprland.lua did not return the injected hl runtime") end',
             ]
         )
         with tempfile.TemporaryDirectory(prefix="infinity-hypr-bootstrap-") as home:
