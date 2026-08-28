@@ -1,5 +1,3 @@
-local hl = require("hyprland")
-
 require("helpers")
 require("modules.env")
 require("modules.monitors")
