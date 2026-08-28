@@ -73,7 +73,7 @@ def package_manifests():
 
 def preview_manifest():
     path = REPO / "installation/preview-packages.official.txt"
-    required = {"hyprland", "quickshell", "ghostty", "hypridle", "hyprlock", "xdg-desktop-portal", "xdg-desktop-portal-hyprland", "xdg-desktop-portal-gtk", "qt6-wayland", "ttf-ibm-plex", "noto-fonts"}
+    required = {"hyprland", "quickshell", "ghostty", "hypridle", "hyprlock", "xdg-desktop-portal", "xdg-desktop-portal-hyprland", "xdg-desktop-portal-gtk", "qt6-wayland", "ttf-ibm-plex", "noto-fonts", "fuzzel"}
     pattern = re.compile(r"^[a-z0-9@._+-]+$")
     packages = []
     for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -200,7 +200,7 @@ def command_refs():
             item = line.split("#", 1)[0].strip()
             if item:
                 packages.add(item)
-    commands = {"ghostty", "uwsm", "nautilus", "lazydocker", "obsidian", "keepassxc", "xdg-open", "walker", "cliphist", "wl-copy", "quickshell", "hyprctl", "hypridle", "systemctl", "dbus-update-activation-environment"}
+    commands = {"ghostty", "uwsm", "nautilus", "lazydocker", "obsidian", "keepassxc", "xdg-open", "fuzzel", "cliphist", "wl-copy", "quickshell", "hyprctl", "hypridle", "systemctl", "dbus-update-activation-environment"}
     provided = {"uwsm", "xdg-open", "systemctl", "dbus-update-activation-environment", "hyprctl", "wl-copy"}
     missing = sorted((commands - packages - allowed) - provided)
     if missing:

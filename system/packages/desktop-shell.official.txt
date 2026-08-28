@@ -5,7 +5,7 @@ greetd
 greetd-regreet
 tuigreet
 plymouth
-walker
+fuzzel
 cliphist
 grim
 slurp

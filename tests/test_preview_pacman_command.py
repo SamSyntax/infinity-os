@@ -21,9 +21,11 @@ def main():
     expected_prefix = ["/usr/bin/pacman", "-Syu", "--needed", "--noconfirm", "--"]
     if args[:5] != expected_prefix:
         raise SystemExit(f"bad pacman argv prefix: {args[:5]}")
-    for package in ["hyprland", "quickshell", "ghostty", "noto-fonts"]:
+    for package in ["hyprland", "quickshell", "ghostty", "noto-fonts", "fuzzel"]:
         if package not in args[5:]:
             raise SystemExit(f"pacman argv omitted {package}")
+    if "walker" in args[5:]:
+        raise SystemExit("pacman argv still includes unavailable walker package")
 
     with tempfile.TemporaryDirectory(prefix="infinity-pacman-parser-") as tmp:
         bad = Path(tmp) / "bad-packages.txt"

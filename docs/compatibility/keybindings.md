@@ -17,12 +17,12 @@ This file is the canonical compatibility inventory. `docs/compatibility/hyprland
 | Hyprland | Super+H/J/K/L | focus directional | focus neighboring window | `hl.dsp.focus` | preserved |
 | Hyprland | Super+Q | close window | close focused window | `hl.dsp.window.close()` | preserved |
 | Hyprland | Super+F | fullscreen | fullscreen focused window | `hl.dsp.window.fullscreen` | preserved |
-| Hyprland | Super+R | apps menu | open app launcher | `walker` | Omarchy command avoided |
+| Hyprland | Super+R | apps menu | open app launcher | `fuzzel` | official Arch package replaces AUR-only Walker |
 | Infinity distro | Super+Shift+M | distro-only session exit | exit manual Hyprland preview | `hyprctl dispatch exit` | new non-conflicting VM preview escape hatch |
 | Hyprland | Super+mouse_down/up | cursor zoom | zoom in/out | cursor zoom helper | preserved |
 | Hyprland | Super+equal/minus/KP_ADD/KP_SUBTRACT | cursor zoom | keyboard zoom in/out | cursor zoom helper | preserved |
 | Hyprland | Super+Shift+mouse_up/down/minus/KP_SUBTRACT, Super+Ctrl+1 | reset cursor zoom | return zoom to 1 | cursor zoom reset helper | preserved |
-| Hyprland | Super+V | `cliphist list | walker --dmenu | cliphist decode | wl-copy` | clipboard history picker | same pipeline | preserved |
+| Hyprland | Super+V | `cliphist list | walker --dmenu | cliphist decode | wl-copy` | clipboard history picker | `cliphist list | fuzzel --dmenu | cliphist decode | wl-copy` | intent preserved with official Arch launcher |
 | Hyprland | Super+Z | quickshell toggle | toggle desktop shell | repo path-compatible `quickshell kill ... || quickshell ...` | preserved |
 | Hyprland | Super+4 | `hyprctl dispatch layoutmsg orientationleft && hyprctl dispatch layoutmsg swapwithmaster` | orient master left | same command | preserved |
 | Hyprland | Super+Shift+S | final effective screenshot command `omarchy-capture-screenshot` | capture/edit screenshot | `infinity-capture-screenshot` | repository replacement supplied |
@@ -43,5 +43,5 @@ This file is the canonical compatibility inventory. `docs/compatibility/hyprland
 | fish | Ctrl-r | history/search | recall previous commands | pending shell config deployment | exact function unavailable |
 | fish | Ctrl-o | source-specific command workflow | user shell workflow | pending shell config deployment | private-path items excluded |
 | fish | aliases/functions | assorted user workflows | preserve public intent | pending shell config deployment | private paths and secrets must not be copied |
-| launcher | Super+R | app launcher | launch applications | `walker` | preserved from Hyprland source summary |
-| launcher | Super+V | clipboard launcher mode | choose clipboard item | `cliphist` plus `walker --dmenu` | preserved |
+| launcher | Super+R | app launcher | launch applications | `fuzzel` | official Arch package preserves launcher intent |
+| launcher | Super+V | clipboard launcher mode | choose clipboard item | `cliphist` plus `fuzzel --dmenu` | intent preserved |

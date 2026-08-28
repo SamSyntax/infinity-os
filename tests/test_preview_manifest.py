@@ -16,6 +16,7 @@ REQUIRED = {
     "qt6-wayland",
     "ttf-ibm-plex",
     "noto-fonts",
+    "fuzzel",
 }
 
 

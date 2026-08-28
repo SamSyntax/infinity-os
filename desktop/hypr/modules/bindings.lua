@@ -25,7 +25,7 @@ o.replace("SUPER + J", "Focus down", hl.dsp.focus({ direction = "d" }))
 
 o.replace("SUPER + Q", "Close window", hl.dsp.window.close())
 o.replace("SUPER + F", "Fullscreen", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
-o.replace("SUPER + R", "Apps", "walker")
+o.replace("SUPER + R", "Apps", "fuzzel")
 o.replace("SUPER + SHIFT + M", "Exit session", "hyprctl dispatch exit")
 
 local function set_zoom(value)
@@ -48,7 +48,7 @@ o.replace("SUPER + SHIFT + minus", "Reset zoom", function() set_zoom(1) end)
 o.replace("SUPER + SHIFT + KP_SUBTRACT", "Reset zoom", function() set_zoom(1) end)
 o.replace("SUPER + CTRL + 1", "Reset zoom", function() set_zoom(1) end)
 
-o.replace("SUPER + V", "Clipboard history", "cliphist list | walker --dmenu | cliphist decode | wl-copy")
+o.replace("SUPER + V", "Clipboard history", "cliphist list | fuzzel --dmenu | cliphist decode | wl-copy")
 o.replace("SUPER + Z", "Toggle Quickshell", "quickshell kill --path ~/.config/quickshell/shell.qml || quickshell --path ~/.config/quickshell/shell.qml --no-duplicate --daemonize")
 o.replace("SUPER + 4", "Master layout left", "hyprctl dispatch layoutmsg orientationleft && hyprctl dispatch layoutmsg swapwithmaster")
 o.replace("SUPER + SHIFT + S", "Screenshot with editing", "infinity-capture-screenshot")

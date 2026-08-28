@@ -12,7 +12,7 @@ xdg-desktop-portal-gtk
 qt6-wayland
 ttf-ibm-plex
 noto-fonts
-walker
+fuzzel
 cliphist
 wl-clipboard
 grim
