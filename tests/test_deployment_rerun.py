@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -22,6 +23,12 @@ def execute(root):
 def main():
     with tempfile.TemporaryDirectory(prefix="infinity-deployment-") as tmp:
         root = Path(tmp)
+        passwd = root / "etc/passwd"
+        passwd.parent.mkdir()
+        passwd.write_text(
+            f"tester:x:{os.geteuid()}:{os.getegid()}:Test User:/home/tester:/bin/bash\n",
+            encoding="utf-8",
+        )
         execute(root)
         home = root / "home/tester"
         config = home / ".config/hypr/hyprland.lua"
