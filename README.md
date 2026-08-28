@@ -24,7 +24,17 @@ Use a virtual machine or sacrificial Arch installation. The current installer do
    ./bin/infinity-theme apply signal-archive --dry-run --target-user "$USER"
    ```
    These commands only read theme data or print planned user-home writes. `Signal Archive` is the original warm-monochrome, halftone/distortion edition.
-5. Apply a minimal manual Hyprland + Quickshell preview only inside the already bootable VM:
+5. Review the standalone official workstation package transaction:
+   ```sh
+   ./install.sh --plan --stage packages
+   ```
+   This writes nothing. It validates that package selection would happen before any target write, prints the detected CPU microcode decision, states that graphics drivers and AUR packages are deferred, and prints the exact `/usr/bin/pacman -Syu --needed --noconfirm -- ...` argv.
+6. Apply the broader official package groups only on the live root of the Arch VM/system:
+   ```sh
+   sudo ./install.sh --confirm --stage packages
+   ```
+   `packages` is intentionally standalone like `preview`: it must be the only selected apply stage and only accepts the resolved target root `/`. It installs one official package transaction for `base`, `hardware`, `wayland`, `desktop-shell`, and `applications`, in that order. It removes both microcode packages from manifests first, then adds at most one production choice: no microcode in a VM/container, `intel-ucode` on bare-metal GenuineIntel, or `amd-ucode` on bare-metal AuthenticAMD. Unknown bare-metal CPU vendors fail before log creation or pacman. It does not install graphics/AUR packages, enable services, touch boot/greeter files, deploy dotfiles, or apply themes. If pacman exits nonzero, package state may have changed; no removal is attempted, so resolve pacman and rerun the same stage.
+7. Apply a minimal manual Hyprland + Quickshell preview only inside the already bootable VM:
    ```sh
    sudo ./install.sh --confirm --stage preview --target-user youruser
    ```
@@ -35,13 +45,13 @@ Use a virtual machine or sacrificial Arch installation. The current installer do
    Hyprland --config "$HOME/.config/hypr/hyprland.lua"
    ```
    Use `Super+Return` to open Ghostty and `Super+Shift+M` to exit Hyprland back to the TTY. VM 3D acceleration may be required for Hyprland to start.
-6. Apply the older staged repository deployment only inside a mounted test root after reviewing the plan:
+8. Apply the older staged repository deployment only inside a mounted test root after reviewing the plan:
    ```sh
    ./install.sh --confirm --target-root /mnt/infinity-root --target-user youruser --stage preflight --stage themes --stage deploy --stage validate
    ```
    This only applies the supported stages. The default `--confirm` run fails fast because the full stage list still includes plan-only stages such as base, hardware, wayland, desktop-shell, applications, services, boot, and greeter. Use a writable mounted target root; existing mapped user configuration is copied to `~/.local/share/infinity-os/backups/` before replacement. The deployment record is `~/.local/share/infinity-os/deployment-manifest.json`.
 
-The installer never partitions disks. Plan mode is the safe development default. Apply mode currently works only for `preflight`, `themes`, `deploy`, `validate`, and the live-root-only `preview`; the other stages are plan-only and make default `--confirm` fail before any writes.
+The installer never partitions disks. Plan mode is the safe development default. Apply mode currently works only for `preflight`, `themes`, `deploy`, `validate`, and the standalone live-root-only `packages` and `preview` stages; the remaining stages are plan-only and make default `--confirm` fail before any writes.
 
 ## How the pieces connect
 
@@ -57,7 +67,9 @@ The installer never partitions disks. Plan mode is the safe development default.
 ```sh
 ./install.sh --help
 ./install.sh --plan --target-root /tmp --target-user testuser
+./install.sh --plan --stage packages
 ./install.sh --plan --stage preview --target-user testuser
+sudo ./install.sh --confirm --stage packages
 ./install.sh --confirm --target-root /tmp/infinity-root --target-user testuser --stage preflight --stage themes --stage deploy --stage validate
 ./bin/infinity-validate
 ./bin/infinity-theme list
@@ -68,9 +80,9 @@ The installer never partitions disks. Plan mode is the safe development default.
 
 ## Current status
 
-- Implemented and repository-tested: staged plan/apply CLI, live-root-only preview stage, grouped package manifests, symlink-safe deployment/logging with backups and a manifest, modular Hyprland Lua, theme schema/rollback CLI, three original themes and wallpapers, and one validation command.
+- Implemented and repository-tested: staged plan/apply CLI, standalone live-root-only official package stage, live-root-only preview stage, grouped package manifests, symlink-safe deployment/logging with backups and a manifest, modular Hyprland Lua, theme schema/rollback CLI, three original themes and wallpapers, and one validation command.
 - Implemented and runtime-loaded on the development host: modular Quickshell wallpaper, rail, expandable system-state surface, launcher shell, OSD, shared theme service, and animated theme previews.
-- Template-only, not applied or VM-tested yet: systemd-boot/Plymouth rendering, full package installation, hardware selection, service enablement, greetd/ReGreet login, and the hypridle/hyprlock lifecycle.
+- Template-only, not applied or VM-tested yet: systemd-boot/Plymouth rendering, graphics-driver selection, service enablement, greetd/ReGreet login, and the hypridle/hyprlock lifecycle.
 - Mocked/placeholder backends: launcher indexing/activation, live network/Bluetooth/power values, OSD system events, and theme-preview commit wiring.
 - Runtime services are not claimed tested on this host.
 

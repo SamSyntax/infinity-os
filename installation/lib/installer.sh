@@ -6,8 +6,12 @@ export PATH
 INFINITY_PYTHON=/usr/bin/python3
 INFINITY_LOG_RELATIVE=var/log/infinity-os/install.log
 
-INFINITY_STAGES=(preflight repositories base hardware wayland desktop-shell applications services boot greeter themes deploy validate preview)
-INFINITY_APPLY_STAGES=(preflight themes deploy validate preview)
+INFINITY_STAGES=(preflight repositories packages base hardware wayland desktop-shell applications services boot greeter themes deploy validate preview)
+INFINITY_APPLY_STAGES=(preflight packages themes deploy validate preview)
+INFINITY_PREVIEW_ARGV=()
+INFINITY_PACKAGES_ARGV=()
+INFINITY_PACKAGES_MICROCODE_PACKAGE=
+INFINITY_PACKAGES_MICROCODE_REASON=
 
 infinity_usage() {
   cat <<'USAGE'
@@ -22,10 +26,10 @@ Options:
   --stage NAME              Repeatable stage selection.
 
 Stages:
-  preflight,repositories,base,hardware,wayland,desktop-shell,applications,services,boot,greeter,themes,deploy,validate,preview
+  preflight,repositories,packages,base,hardware,wayland,desktop-shell,applications,services,boot,greeter,themes,deploy,validate,preview
 
 Apply-capable stages:
-  preflight,themes,deploy,validate,preview
+  preflight,packages,themes,deploy,validate,preview
 
 No disk partitioning is performed.
 USAGE
@@ -53,17 +57,21 @@ infinity_has_apply_stage() {
 }
 
 infinity_validate_apply_selection() {
-  local unsupported=() stage has_preview=0 count=0
+  local unsupported=() stage has_preview=0 has_packages=0 count=0
   for stage in "$@"; do
     count=$((count + 1))
     [[ $stage == preview ]] && has_preview=1
+    [[ $stage == packages ]] && has_packages=1
     infinity_has_apply_stage "$stage" || unsupported+=("$stage")
   done
   if ((${#unsupported[@]})); then
-    infinity_die "selected stages are plan-only: ${unsupported[*]}; use --plan or select only preflight,themes,deploy,validate,preview"
+    infinity_die "selected stages are plan-only: ${unsupported[*]}; use --plan or select only preflight,packages,themes,deploy,validate,preview"
   fi
   if [[ $has_preview == 1 && $count -ne 1 ]]; then
     infinity_die "preview apply must be selected by itself; run only --stage preview so deployment stays user-scoped"
+  fi
+  if [[ $has_packages == 1 && $count -ne 1 ]]; then
+    infinity_die "packages apply must be selected by itself; run only --stage packages so package installation cannot mix with deployment, services, boot, greeter, or theme actions"
   fi
 }
 
@@ -128,8 +136,12 @@ PY
 
 infinity_install_preview_packages() {
   local argv=() output
-  output=$(infinity_preview_pacman_argv "$@") || return
-  mapfile -t argv <<<"$output"
+  if ((${#INFINITY_PREVIEW_ARGV[@]})); then
+    argv=("${INFINITY_PREVIEW_ARGV[@]}")
+  else
+    output=$(infinity_preview_pacman_argv "$@") || return
+    mapfile -t argv <<<"$output"
+  fi
   ((${#argv[@]})) || infinity_die "preview pacman command is empty"
   "${argv[@]}"
 }
@@ -139,6 +151,58 @@ infinity_preview_pacman_argv() {
   mapfile -t packages < <(infinity_preview_packages "$@")
   ((${#packages[@]})) || infinity_die "preview package manifest is empty"
   printf '%s\n' /usr/bin/pacman -Syu --needed --noconfirm -- "${packages[@]}"
+}
+
+infinity_compute_preview_argv() {
+  local output
+  output=$(infinity_preview_pacman_argv) || return
+  mapfile -t INFINITY_PREVIEW_ARGV <<<"$output"
+  ((${#INFINITY_PREVIEW_ARGV[@]})) || infinity_die "preview pacman command is empty"
+}
+
+infinity_compute_packages_argv() {
+  local lines=() line output
+  output=$(PYTHONPATH="$INFINITY_REPO/installation/lib" "$INFINITY_PYTHON" - "$INFINITY_REPO" <<'PY'
+import sys
+from pathlib import Path
+from package_selection import PackageSelectionError, pacman_argv, production_microcode_decision, select_repository_packages
+
+try:
+    repo = Path(sys.argv[1])
+    microcode = production_microcode_decision()
+    packages = select_repository_packages(repo, microcode)
+    print(f"MICROCODE\t{microcode.package or '-'}\t{microcode.reason}")
+    for item in pacman_argv(packages):
+        print(item)
+except (OSError, PackageSelectionError) as error:
+    raise SystemExit(str(error))
+PY
+  ) || return
+  mapfile -t lines <<<"$output"
+  ((${#lines[@]} >= 6)) || infinity_die "packages pacman command is empty"
+  line=${lines[0]}
+  [[ $line == MICROCODE$'\t'* ]] || infinity_die "packages microcode decision was not reported"
+  IFS=$'\t' read -r _ INFINITY_PACKAGES_MICROCODE_PACKAGE INFINITY_PACKAGES_MICROCODE_REASON <<<"$line"
+  INFINITY_PACKAGES_ARGV=("${lines[@]:1}")
+  [[ ${INFINITY_PACKAGES_ARGV[0]} == /usr/bin/pacman ]] || infinity_die "packages pacman command must use /usr/bin/pacman"
+}
+
+infinity_packages_pacman_argv() {
+  if ((${#INFINITY_PACKAGES_ARGV[@]} == 0)); then
+    infinity_compute_packages_argv
+  fi
+  printf '%s\n' "${INFINITY_PACKAGES_ARGV[@]}"
+}
+
+infinity_install_packages() {
+  local argv=()
+  if ((${#INFINITY_PACKAGES_ARGV[@]})); then
+    argv=("${INFINITY_PACKAGES_ARGV[@]}")
+  else
+    mapfile -t argv < <(infinity_packages_pacman_argv)
+  fi
+  ((${#argv[@]})) || infinity_die "packages pacman command is empty"
+  "${argv[@]}"
 }
 
 infinity_resolved_root() {
@@ -160,6 +224,18 @@ infinity_preview_preflight() {
   home=$(getent passwd "$INFINITY_TARGET_USER" | cut -d: -f6)
   [[ $uid =~ ^[0-9]+$ && $uid -ne 0 ]] || infinity_die "target user '$INFINITY_TARGET_USER' must be a non-root account"
   [[ $home == "/home/$INFINITY_TARGET_USER" ]] || infinity_die "target user '$INFINITY_TARGET_USER' home must be exactly /home/$INFINITY_TARGET_USER, got '$home'"
+}
+
+infinity_packages_preflight() {
+  local resolved
+  resolved=$(infinity_resolved_root "$INFINITY_TARGET_ROOT") || infinity_die "cannot resolve target root '$INFINITY_TARGET_ROOT'"
+  [[ $resolved == / ]] || infinity_die "packages apply only supports --target-root / on the running Arch system; got '$resolved'. Use --plan for other roots."
+  [[ ${EUID:-$(id -u)} == 0 ]] || infinity_die "packages apply must run as root with sudo so pacman can write to the live system"
+  [[ -x /usr/bin/pacman ]] || infinity_die "packages apply requires executable /usr/bin/pacman; run this on an already bootable Arch system"
+}
+
+infinity_prewrite_repository_validation() {
+  "$INFINITY_REPO/bin/infinity-validate"
 }
 
 infinity_preview_success() {
@@ -198,6 +274,23 @@ infinity_run_stage() {
     base|hardware|wayland|desktop-shell|applications)
       infinity_plan_packages "$stage"
       ;;
+    packages)
+      if [[ $INFINITY_DRY_RUN == 1 ]]; then
+        infinity_compute_packages_argv
+        infinity_log "PLAN packages: repository validation runs before package writes and before log creation"
+        infinity_log "PLAN packages: microcode ${INFINITY_PACKAGES_MICROCODE_PACKAGE} (${INFINITY_PACKAGES_MICROCODE_REASON})"
+        infinity_log "PLAN packages: includes official groups base,hardware,wayland,desktop-shell,applications in that order"
+        infinity_log "PLAN packages: graphics and AUR manifests are deferred; no services, boot, greeter, deploy, or theme actions"
+        infinity_log "PLAN packages command: ${INFINITY_PACKAGES_ARGV[*]}"
+        return
+      fi
+      infinity_log "packages: installing official workstation package groups in one pacman transaction"
+      if ! infinity_log_command infinity_install_packages; then
+        infinity_log "packages: pacman failed; package state may have changed, no package removal was attempted. Resolve pacman, then rerun: sudo ./install.sh --confirm --stage packages"
+        return 1
+      fi
+      infinity_log "packages: complete; graphics, AUR, services, boot, greeter, deploy, and theme actions were not run"
+      ;;
     services)
       infinity_log "PLAN enable NetworkManager, bluetooth, power-profiles-daemon, greetd, pipewire user services where present"
       ;;
@@ -223,7 +316,8 @@ infinity_run_stage() {
     preview)
       if [[ $INFINITY_DRY_RUN == 1 ]]; then
         infinity_log "PLAN preview: validate repository before package writes"
-        infinity_log "PLAN preview packages: /usr/bin/pacman -Syu --needed --noconfirm -- $(infinity_preview_packages | paste -sd ' ' -)"
+        infinity_compute_preview_argv
+        infinity_log "PLAN preview packages: ${INFINITY_PREVIEW_ARGV[*]}"
         infinity_log "PLAN preview deploy: infinity-deploy --scope user --target-root $INFINITY_TARGET_ROOT --target-user $INFINITY_TARGET_USER --dry-run"
         "$INFINITY_REPO/bin/infinity-deploy" --scope user --target-root "$INFINITY_TARGET_ROOT" --target-user "$INFINITY_TARGET_USER" --dry-run
         infinity_log "PLAN preview theme: apply Signal Archive to user config"
@@ -232,10 +326,11 @@ infinity_run_stage() {
         return
       fi
       infinity_preview_preflight
-      infinity_log "preview: validating repository before package writes"
-      infinity_log_command "$INFINITY_REPO/bin/infinity-validate"
       infinity_log "preview: installing official packages in one pacman transaction"
-      infinity_log_command infinity_install_preview_packages
+      if ! infinity_log_command infinity_install_preview_packages; then
+        infinity_log "preview: pacman failed; package state may have changed, no package removal was attempted. Resolve pacman, then rerun: sudo ./install.sh --confirm --stage preview --target-user $INFINITY_TARGET_USER"
+        return 1
+      fi
       infinity_log "preview: deploying user-scoped configuration with backups"
       infinity_log_command "$INFINITY_REPO/bin/infinity-deploy" --scope user --target-root "$INFINITY_TARGET_ROOT" --target-user "$INFINITY_TARGET_USER"
       infinity_log "preview: applying Signal Archive theme"
@@ -286,7 +381,24 @@ infinity_installer_main() {
     local stage
     for stage in "${selected[@]}"; do
       [[ $stage == preview ]] && infinity_preview_preflight
+      [[ $stage == packages ]] && infinity_packages_preflight
     done
+  fi
+
+  if [[ $INFINITY_DRY_RUN == 0 ]]; then
+    local needs_prewrite_validation=0 stage
+    for stage in "${selected[@]}"; do
+      if [[ $stage == preview ]]; then
+        needs_prewrite_validation=1
+        infinity_compute_preview_argv
+      elif [[ $stage == packages ]]; then
+        needs_prewrite_validation=1
+        infinity_compute_packages_argv
+      fi
+    done
+    if [[ $needs_prewrite_validation == 1 ]]; then
+      infinity_prewrite_repository_validation
+    fi
   fi
 
   if [[ $INFINITY_DRY_RUN == 1 ]]; then

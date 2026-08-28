@@ -65,6 +65,12 @@ def main():
         require("preview apply must be selected by itself" in confirm.stderr, "preview apply combination was not rejected")
         assert_empty_directory(tmp, "rejected preview combination wrote into the target root")
 
+    with tempfile.TemporaryDirectory(prefix="infinity-installer-packages-combo-") as tmp:
+        confirm = run("--confirm", "--target-root", tmp, "--target-user", "tester", "--stage", "packages", "--stage", "preflight")
+        require(confirm.returncode != 0, confirm.stdout + confirm.stderr)
+        require("packages apply must be selected by itself" in confirm.stderr, "packages apply combination was not rejected")
+        assert_empty_directory(tmp, "rejected packages combination wrote into the target root")
+
     with tempfile.TemporaryDirectory(prefix="infinity-installer-confirm-preflight-") as tmp:
         confirm = run("--confirm", "--target-root", tmp, "--target-user", "tester", "--stage", "preflight")
         require(confirm.returncode == 0, confirm.stdout + confirm.stderr)
@@ -100,6 +106,19 @@ def main():
         require(confirm.returncode != 0, confirm.stdout + confirm.stderr)
         require("only supports --target-root /" in confirm.stderr, "preview confirm did not reject non-live target root")
         assert_empty_directory(tmp, "rejected preview confirm wrote into the target root")
+
+    with tempfile.TemporaryDirectory(prefix="infinity-installer-packages-plan-") as tmp:
+        plan = run("--plan", "--target-root", tmp, "--target-user", "tester", "--stage", "packages")
+        require(plan.returncode == 0, plan.stdout + plan.stderr)
+        for expected in ["validation", "microcode", "graphics and AUR", "/usr/bin/pacman -Syu --needed --noconfirm --"]:
+            require(expected in plan.stdout, f"packages plan omitted {expected!r}")
+        assert_empty_directory(tmp, "packages plan wrote into the target root")
+
+    with tempfile.TemporaryDirectory(prefix="infinity-installer-packages-confirm-") as tmp:
+        confirm = run("--confirm", "--target-root", tmp, "--target-user", "tester", "--stage", "packages")
+        require(confirm.returncode != 0, confirm.stdout + confirm.stderr)
+        require("packages apply only supports --target-root /" in confirm.stderr, "packages confirm did not reject non-live target root")
+        assert_empty_directory(tmp, "rejected packages confirm wrote into the target root")
 
     print("ok: installer help, plan, confirm rejection, and no-write behavior")
 

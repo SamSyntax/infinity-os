@@ -36,7 +36,7 @@ def shell_syntax():
             run(f"shell syntax {script.relative_to(REPO)}", ["bash", "-n", str(script)])
 
 def python_syntax():
-    scripts = sorted((REPO / "bin").glob("infinity-*"))
+    scripts = [*sorted((REPO / "bin").glob("infinity-*")), *sorted((REPO / "installation/lib").glob("*.py"))]
     for script in scripts:
         first = script.read_text(encoding="utf-8").splitlines()[0]
         if "python3" in first:
@@ -63,7 +63,7 @@ def package_manifests():
             item = line.split("#", 1)[0].strip()
             if not item:
                 continue
-            if not pattern.match(item):
+            if not pattern.fullmatch(item):
                 fail("package manifests", f"invalid package {item} at {path}:{line_no}")
             if item in seen:
                 fail("package manifests", f"duplicate package {item} in {path} and {seen[item]}")
@@ -74,13 +74,13 @@ def package_manifests():
 def preview_manifest():
     path = REPO / "installation/preview-packages.official.txt"
     required = {"hyprland", "quickshell", "ghostty", "hypridle", "hyprlock", "xdg-desktop-portal", "xdg-desktop-portal-hyprland", "xdg-desktop-portal-gtk", "qt6-wayland", "ttf-ibm-plex", "noto-fonts", "fuzzel"}
-    pattern = re.compile(r"^[a-z0-9@._+-]+$")
+    pattern = re.compile(r"^[a-z0-9][a-z0-9@._+-]*$")
     packages = []
     for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         item = line.split("#", 1)[0].strip()
         if not item:
             continue
-        if not pattern.match(item):
+        if not pattern.fullmatch(item):
             fail("preview package manifest", f"invalid package {item} at {path}:{line_no}")
         packages.append(item)
     missing = required - set(packages)
@@ -166,7 +166,7 @@ def mappings():
         if target in targets:
             fail("deployment mappings", f"duplicate target {target}")
         targets.add(target)
-        if not re.match(r"^0[0-7]{3}$", mode):
+        if not re.fullmatch(r"0[0-7]{3}", mode):
             fail("deployment mappings", f"bad mode {mode}")
         if preserve not in {"yes", "no"}:
             fail("deployment mappings", f"bad preserve flag {preserve}")

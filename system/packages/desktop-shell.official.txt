@@ -3,7 +3,7 @@ quickshell
 cage
 greetd
 greetd-regreet
-tuigreet
+greetd-tuigreet
 plymouth
 fuzzel
 cliphist
@@ -14,3 +14,4 @@ wl-clipboard
 wf-recorder
 libnotify
 ttf-ibm-plex
+noto-fonts

@@ -2,6 +2,6 @@
 mesa
 vulkan-radeon
 vulkan-intel
-nvidia
+nvidia-open
 nvidia-utils
 nvidia-settings

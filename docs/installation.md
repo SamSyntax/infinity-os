@@ -2,11 +2,11 @@
 
 `install.sh` is a thin strict-mode entry point. Supported stages:
 
-`preflight,repositories,base,hardware,wayland,desktop-shell,applications,services,boot,greeter,themes,deploy,validate,preview`
+`preflight,repositories,packages,base,hardware,wayland,desktop-shell,applications,services,boot,greeter,themes,deploy,validate,preview`
 
 Apply-capable stages:
 
-`preflight,themes,deploy,validate,preview`
+`preflight,packages,themes,deploy,validate,preview`
 
 Plan mode:
 
@@ -22,9 +22,49 @@ Apply mode requires `--confirm` and should be run only on a target VM/system:
 
 If `--confirm` includes any plan-only stage, the installer exits before creating its log directory or writing files and names the unsupported stages in the error. Use `--plan` for the full stage list.
 
+The two package-changing apply stages, `packages` and `preview`, must each be selected by themselves. This prevents a package transaction from being accidentally coupled to deployment, service, boot, greeter, or theme writes.
+
 No stage partitions disks. Hardware and graphics stages report decisions and package groups; they do not assume NVIDIA/AMD/Intel globally.
 
 Logs are written under `<target-root>/var/log/infinity-os/` when applying. Log creation and append use symlink-safe regular-file operations and reject symlinked parents or log files. Plan mode writes nothing and streams the proposed actions to standard output.
+
+## Standalone official packages stage
+
+The `packages` stage installs the broader official workstation package groups without turning on the desktop yet.
+
+Plan first:
+
+```sh
+./install.sh --plan --stage packages
+```
+
+The plan writes nothing. It may read `/usr/bin/systemd-detect-virt --quiet` and `/proc/cpuinfo` to show the same microcode decision apply mode will use. It prints:
+
+- repository validation will run before any package write and before log creation;
+- the selected CPU microcode result;
+- that graphics and AUR packages are deferred;
+- that services, boot, greeter, deploy, and theme actions are excluded;
+- the exact absolute pacman argv.
+
+Apply on the live Arch system only:
+
+```sh
+sudo ./install.sh --confirm --stage packages
+```
+
+Safety and scope:
+
+1. The resolved target root must be `/`. This stage does not chroot and does not install into `/mnt`.
+2. The effective UID must be 0, normally from `sudo`.
+3. `/usr/bin/pacman` must exist and be executable. The installer does not use a `PATH`-resolved pacman.
+4. Repository validation and the complete package list are computed before log creation or any target write.
+5. The only privileged command is exactly `/usr/bin/pacman -Syu --needed --noconfirm -- ...`.
+
+`-Syu` means: sync package databases (`-y`), upgrade the system as needed (`-u`), and install the requested packages (`-S`) in one transaction. This follows Arch’s rule that package installation should not happen against a partially upgraded system. `--needed` avoids reinstalling packages that are already current, `--noconfirm` is gated by the installer-level `--confirm`, and `--` ends pacman options before package names.
+
+Included official groups, merged in this order with first occurrence preserved: `base`, `hardware`, `wayland`, `desktop-shell`, `applications`. The selector deliberately never reads `graphics.official.txt` or `aur.txt` for this stage. Both `intel-ucode` and `amd-ucode` are removed from the hardware group first; then production detection adds at most one: none in a VM/container, `intel-ucode` on bare-metal GenuineIntel, `amd-ucode` on bare-metal AuthenticAMD. Unknown bare-metal vendors fail before log creation or pacman.
+
+Failure recovery: if pacman returns nonzero, the installer exits immediately after printing/logging that package state may have changed, no removal was attempted, and the recovery action is to resolve the pacman error and rerun `sudo ./install.sh --confirm --stage packages`.
 
 ## Manual VM preview stage
 
