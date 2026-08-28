@@ -1,1 +1,3 @@
-**/.omo/**
+.omo
+__pycache__/
+*.pyc

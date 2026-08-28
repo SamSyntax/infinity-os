@@ -9,4 +9,4 @@ Motion communicates state and spatial origin.
 - OSDs enter from one predictable region and decay cleanly.
 - Reduced-motion mode must collapse nonessential animation while preserving state changes.
 
-Current foundation exposes duration/easing tokens in `desktop/themes/*.json`; QML implementation is pending.
+The current QML slice uses shared duration tokens, transform/opacity transitions, anchored popup growth, theme-card selection, and OSD decay. `ShellState.reducedMotion` collapses durations to zero. Directional workspace motion and full preview-to-commit continuity remain future integration work.

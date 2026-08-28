@@ -1,5 +1,6 @@
 # Shell surfaces and desktop essentials
 quickshell
+cage
 greetd
 greetd-regreet
 tuigreet

@@ -150,6 +150,13 @@ def mappings():
             fail("deployment mappings", f"bad mode {mode}")
         if preserve not in {"yes", "no"}:
             fail("deployment mappings", f"bad preserve flag {preserve}")
+        target_path = Path(target)
+        if target_path.is_absolute() or ".." in target_path.parts:
+            fail("deployment mappings", f"unsafe target path {target}")
+        if target_path.parts and target_path.parts[0] not in {".config", ".local", "etc", "usr"}:
+            fail("deployment mappings", f"target path is outside allowed roots: {target}")
+        if target_path.parts and target_path.parts[0] == "usr" and target_path.parts[:2] != ("usr", "share"):
+            fail("deployment mappings", f"only usr/share targets are allowed: {target}")
     if not any(f.startswith("deployment mappings") for f in failures):
         ok("deployment mappings")
 
@@ -179,6 +186,24 @@ def command_refs():
         ok("command references")
 
 def qml_hook():
+    required = {
+        "services/Theme.qml",
+        "services/ShellState.qml",
+        "components/ThemeCard.qml",
+        "surfaces/WallpaperSurface.qml",
+        "surfaces/RailSurface.qml",
+        "surfaces/ControlSurface.qml",
+        "surfaces/LauncherSurface.qml",
+        "surfaces/OsdSurface.qml",
+        "surfaces/ThemeSurface.qml",
+    }
+    missing = sorted(path for path in required if not (REPO / "desktop/quickshell" / path).is_file())
+    if missing:
+        fail("QML architecture", f"missing required files: {missing}")
+    elif "Non-visual placeholder" in (REPO / "desktop/quickshell/shell.qml").read_text(encoding="utf-8"):
+        fail("QML architecture", "shell.qml is still a placeholder")
+    else:
+        ok("QML architecture")
     qmlformat = shutil.which("qmlformat")
     if not qmlformat:
         print("skip: QML static check, qmlformat not present")
@@ -189,6 +214,22 @@ def qml_hook():
 def installer_dry_run():
     with tempfile.TemporaryDirectory(prefix="infinity-validate-") as tmp:
         run("installer dry-run", [str(REPO / "install.sh"), "--plan", "--target-root", tmp, "--target-user", "testuser", "--stage", "preflight"])
+
+def session_foundation():
+    greetd = (REPO / "system/services/greetd.toml").read_text(encoding="utf-8")
+    packages = (REPO / "system/packages/desktop-shell.official.txt").read_text(encoding="utf-8").splitlines()
+    mappings = (REPO / "deployment/mappings.tsv").read_text(encoding="utf-8")
+    if "initial_session" in greetd:
+        fail("session foundation", "default greetd config must not enable an initial autologin session")
+    if 'command = "cage -s -- regreet"' not in greetd or "cage" not in packages:
+        fail("session foundation", "ReGreet must run inside the packaged Cage compositor")
+    if "usr/share/infinity-os/wallpapers/nocturne.svg" not in mappings:
+        fail("session foundation", "greeter wallpaper is not deployed")
+    boot = (REPO / "system/boot/infinity.conf").read_text(encoding="utf-8")
+    if "@ROOT_UUID@" not in boot or "@MICROCODE_IMAGE@" not in boot:
+        fail("session foundation", "boot template must expose root UUID and CPU microcode placeholders")
+    if not any(item.startswith("session foundation") for item in failures):
+        ok("session foundation")
 
 def repository_tests():
     for path in sorted((REPO / "tests").glob("test_*.py")):
@@ -205,6 +246,7 @@ def main():
     command_refs()
     qml_hook()
     installer_dry_run()
+    session_foundation()
     repository_tests()
     if failures:
         print("\n".join(failures), file=sys.stderr)

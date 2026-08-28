@@ -18,4 +18,4 @@ sudo ./install.sh --target-root / --target-user sam --confirm
 
 No stage partitions disks. Hardware and graphics stages report decisions and package groups; they do not assume NVIDIA/AMD/Intel globally.
 
-Logs are written under `<target-root>/var/log/infinity-os/` when applying, or `/tmp/infinity-os-install.log` in dry-run/plan mode.
+Logs are written under `<target-root>/var/log/infinity-os/` when applying. Plan mode writes nothing and streams the proposed actions to standard output.

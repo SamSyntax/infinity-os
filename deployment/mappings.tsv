@@ -7,3 +7,4 @@ desktop/lockscreen/hyprlock.conf	.config/hypr/hyprlock.conf	0644	yes
 system/power/hypridle.conf	.config/hypr/hypridle.conf	0644	yes
 desktop/greeter/regreet.toml	etc/greetd/regreet.toml	0644	no
 system/services/greetd.toml	etc/greetd/config.toml	0644	no
+desktop/wallpapers/nocturne.svg	usr/share/infinity-os/wallpapers/nocturne.svg	0644	no

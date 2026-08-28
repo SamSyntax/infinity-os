@@ -84,7 +84,9 @@ infinity_run_stage() {
       infinity_log "PLAN deploy greetd/ReGreet config with tuigreet recovery template"
       ;;
     themes)
-      "$INFINITY_REPO/bin/infinity-theme" apply nocturne --dry-run --target-root "$INFINITY_TARGET_ROOT" --target-user "$INFINITY_TARGET_USER" | tee -a "$INFINITY_LOG"
+      local theme_args=(apply nocturne --target-root "$INFINITY_TARGET_ROOT" --target-user "$INFINITY_TARGET_USER")
+      [[ $INFINITY_DRY_RUN == 1 ]] && theme_args+=(--dry-run)
+      "$INFINITY_REPO/bin/infinity-theme" "${theme_args[@]}" | tee -a "$INFINITY_LOG"
       ;;
     deploy)
       local deploy_args=(--target-root "$INFINITY_TARGET_ROOT" --target-user "$INFINITY_TARGET_USER")
@@ -125,6 +127,9 @@ infinity_installer_main() {
   if ((${#selected[@]} == 0)); then
     selected=("${INFINITY_STAGES[@]}")
   fi
+
+  [[ -d $INFINITY_TARGET_ROOT ]] || infinity_die "target root '$INFINITY_TARGET_ROOT' does not exist"
+  [[ $INFINITY_TARGET_USER =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || infinity_die "target user must be a portable Unix account name"
 
   if [[ $INFINITY_DRY_RUN == 1 ]]; then
     INFINITY_LOG=/dev/null

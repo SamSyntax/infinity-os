@@ -9,7 +9,10 @@ Use:
 ```sh
 ./bin/infinity-theme list
 ./bin/infinity-theme preview nocturne
+./bin/infinity-theme preview signal-archive
 ./bin/infinity-theme apply nocturne --dry-run --target-user sam
 ```
 
-Apply writes generated files to a target config/state tree through a staging directory, then atomically promotes the staged tree. It never invokes live applications.
+`list` and `preview` only read repository data. `apply --dry-run` prints target paths without writing. A real `apply` snapshots every existing regular destination, writes each new file through an exclusive temporary file in the same directory, and atomically replaces the destination. If any write fails, all earlier destinations are restored. Symlink destinations, unsafe user names, theme traversal, and wallpaper paths outside `desktop/wallpapers/` are rejected.
+
+Generated outputs currently cover Quickshell, Hyprland, Ghostty, tmux, Neovim, the selected-theme state file, and the current wallpaper. GTK, Qt, greeter, lock, and Plymouth values are represented in the schema but live propagation for those surfaces is not implemented yet.

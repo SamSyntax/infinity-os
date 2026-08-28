@@ -15,7 +15,7 @@ PopupWindow {
     implicitHeight: 360
     visible: Quickshell.env("INFINITY_QA") === "themes"
     color: "transparent"
-    grabFocus: true
+    grabFocus: Quickshell.env("INFINITY_QA") === ""
 
     Rectangle {
         focus: root.visible

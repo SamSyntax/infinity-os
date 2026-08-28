@@ -2,77 +2,41 @@
 import argparse
 import json
 import os
-import shutil
+import re
 import sys
-import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-THEMES = REPO / "desktop" / "themes"
+sys.path.insert(0, str(REPO / "installation/lib"))
+from safe_fs import atomic_write, read_regular, remove_regular, resolve_root, target_identity, validate_relative, validate_user
+
+THEMES = REPO / "desktop/themes"
+THEME_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+
 
 def load_theme(theme_id):
+    if not THEME_ID.fullmatch(theme_id):
+        raise SystemExit(f"invalid theme id: {theme_id!r}")
     path = THEMES / f"{theme_id}.json"
-    if not path.exists():
+    if not path.is_file() or path.is_symlink():
         raise SystemExit(f"unknown theme: {theme_id}")
     return json.loads(path.read_text(encoding="utf-8"))
 
+
 def theme_files():
-    return sorted(p for p in THEMES.glob("*.json") if p.name != "schema.json")
+    return sorted(path for path in THEMES.glob("*.json") if path.name != "schema.json" and not path.is_symlink())
+
 
 def command_list(_args):
     for path in theme_files():
         theme = json.loads(path.read_text(encoding="utf-8"))
         print(f"{theme['id']}\t{theme['mode']}\t{theme['name']}")
 
+
 def command_preview(args):
     theme = load_theme(args.theme)
-    print(json.dumps({
-        "id": theme["id"],
-        "name": theme["name"],
-        "mode": theme["mode"],
-        "palette": theme["palette"],
-        "wallpaper": theme["wallpaper"],
-    }, indent=2, sort_keys=True))
+    print(json.dumps({"id": theme["id"], "name": theme["name"], "mode": theme["mode"], "palette": theme["palette"], "wallpaper": theme["wallpaper"]}, indent=2, sort_keys=True))
 
-def target_home(root, user):
-    if root == Path("/"):
-        return root / "home" / user
-    return root / "home" / user
-
-def write_text(path, data):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(data, encoding="utf-8")
-
-def snapshot_destinations(home, relatives):
-    snapshots = {}
-    for rel in relatives:
-        dest = home / rel
-        snapshots[dest] = dest.read_bytes() if dest.exists() else None
-    return snapshots
-
-def restore_destinations(snapshots):
-    for dest, content in snapshots.items():
-        if content is None:
-            if dest.exists():
-                dest.unlink()
-        else:
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            tmp = dest.with_name(dest.name + ".rollback")
-            tmp.write_bytes(content)
-            os.replace(tmp, dest)
-
-def promote_staged_files(staging, home, fail_after):
-    promoted = 0
-    for item in sorted(staging.rglob("*")):
-        if item.is_file():
-            dest = home / item.relative_to(staging)
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            tmp = dest.with_name(dest.name + ".tmp")
-            shutil.copy2(item, tmp)
-            os.replace(tmp, dest)
-            promoted += 1
-            if fail_after is not None and promoted >= fail_after:
-                raise RuntimeError(f"test fault after {promoted} theme updates")
 
 def render_files(theme):
     palette = theme["palette"]
@@ -87,52 +51,74 @@ def render_files(theme):
         ".local/share/infinity-os/current-theme": theme["id"] + "\n",
     }
 
+
+def apply_transaction(root, home, files, owner, fail_after=None):
+    snapshots = {destination: read_regular(root, destination) for destination in files}
+    promoted = 0
+    try:
+        for destination, content in files.items():
+            atomic_write(root, destination, content, 0o644, owner)
+            promoted += 1
+            if fail_after is not None and promoted >= fail_after:
+                raise RuntimeError(f"test fault after {promoted} theme updates")
+    except BaseException:
+        for destination, snapshot in snapshots.items():
+            if snapshot is None:
+                remove_regular(root, destination)
+            else:
+                atomic_write(root, destination, snapshot[0], snapshot[1], owner)
+        raise
+
+
 def command_apply(args):
     theme = load_theme(args.theme)
-    root = Path(args.target_root).resolve()
-    home = target_home(root, args.target_user)
-    files = render_files(theme)
-    wallpaper_src = REPO / theme["wallpaper"]["path"]
-    wallpaper_rel = ".local/share/infinity-os/current-wallpaper.svg"
+    try:
+        root = resolve_root(args.target_root)
+        user = validate_user(args.target_user)
+        owner = None if args.dry_run else target_identity(root, user)
+        wallpaper_rel = validate_relative(theme["wallpaper"]["path"])
+    except (OSError, KeyError, ValueError) as error:
+        raise SystemExit(f"invalid theme target: {error}") from error
+    home = root / "home" / user
+    wallpaper_src = REPO / wallpaper_rel
+    expected_wallpaper_root = REPO / "desktop/wallpapers"
+    if not wallpaper_src.is_file() or wallpaper_src.is_symlink() or expected_wallpaper_root not in wallpaper_src.parents:
+        raise SystemExit(f"unsafe or missing wallpaper: {wallpaper_rel}")
+    rendered = render_files(theme)
+    planned = {home / validate_relative(relative): data.encode() for relative, data in rendered.items()}
+    wallpaper_destination = home / ".local/share/infinity-os/current-wallpaper.svg"
+    planned[wallpaper_destination] = wallpaper_src.read_bytes()
     if args.dry_run:
         print(f"DRY-RUN apply theme {theme['id']} to {home}")
-        for rel in sorted(files):
-            print(f"PLAN write {home / rel}")
-        print(f"PLAN copy {wallpaper_src} -> {home / wallpaper_rel}")
+        for destination in sorted(planned):
+            action = "copy" if destination == wallpaper_destination else "write"
+            print(f"PLAN {action} {destination}")
         return
-    staging = Path(tempfile.mkdtemp(prefix="infinity-theme-stage-", dir=str(root / "tmp" if (root / "tmp").exists() else None)))
-    snapshots = snapshot_destinations(home, [*files.keys(), wallpaper_rel])
     try:
-        for rel, data in files.items():
-            write_text(staging / rel, data)
-        wallpaper_target = staging / wallpaper_rel
-        wallpaper_target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(wallpaper_src, wallpaper_target)
-        promote_staged_files(staging, home, args.test_fail_after)
-        print(f"applied theme {theme['id']} to {home}")
-    except Exception as error:
-        restore_destinations(snapshots)
+        apply_transaction(root, home, planned, owner, args.test_fail_after)
+    except BaseException as error:
         raise SystemExit(f"theme apply failed and rollback completed: {error}") from error
-    finally:
-        shutil.rmtree(staging, ignore_errors=True)
+    print(f"applied theme {theme['id']} to {home}")
+
 
 def main():
     parser = argparse.ArgumentParser(prog="infinity-theme")
     sub = parser.add_subparsers(required=True)
-    p_list = sub.add_parser("list")
-    p_list.set_defaults(func=command_list)
-    p_preview = sub.add_parser("preview")
-    p_preview.add_argument("theme")
-    p_preview.set_defaults(func=command_preview)
-    p_apply = sub.add_parser("apply")
-    p_apply.add_argument("theme")
-    p_apply.add_argument("--dry-run", action="store_true")
-    p_apply.add_argument("--target-root", default="/")
-    p_apply.add_argument("--target-user", default=os.environ.get("USER", "user"))
-    p_apply.add_argument("--test-fail-after", type=int, default=None, help=argparse.SUPPRESS)
-    p_apply.set_defaults(func=command_apply)
+    list_parser = sub.add_parser("list")
+    list_parser.set_defaults(func=command_list)
+    preview = sub.add_parser("preview")
+    preview.add_argument("theme")
+    preview.set_defaults(func=command_preview)
+    apply = sub.add_parser("apply")
+    apply.add_argument("theme")
+    apply.add_argument("--dry-run", action="store_true")
+    apply.add_argument("--target-root", default="/")
+    apply.add_argument("--target-user", default=os.environ.get("USER", "user"))
+    apply.add_argument("--test-fail-after", type=int, default=None, help=argparse.SUPPRESS)
+    apply.set_defaults(func=command_apply)
     args = parser.parse_args()
     args.func(args)
+
 
 if __name__ == "__main__":
     main()

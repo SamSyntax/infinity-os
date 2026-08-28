@@ -427,6 +427,25 @@ For every substantial feature:
 7. Verify no files outside the repository were modified.
 8. Summarize what is done, what remains, and any decision that needs future user input.
 
+## Development teaching contract
+
+The user wants to understand how this distribution is built, not only receive finished code. Treat every substantial work session as both implementation and instruction.
+
+When reporting work:
+
+- Explain the goal of each subsystem in plain language before describing its files. Assume the reader is new to building Linux distributions.
+- Explain why consequential choices were made, what alternatives exist, and what tradeoffs the chosen approach introduces.
+- Describe how the relevant parts connect from boot to greeter to Hyprland to Quickshell to applications. Do not present isolated configuration fragments without their place in the full system.
+- Define unfamiliar Arch, systemd, Wayland, Hyprland, Quickshell, QML, packaging, and security terms when they first appear. Do not rely on unexplained jargon.
+- For every command the user can run, explain what it does, where it writes, whether it needs root privileges, and how to recognize success or failure.
+- Explain important code and configuration behavior step by step, including inputs, outputs, target paths, safety checks, backup behavior, and rerun behavior.
+- Distinguish clearly between implemented, tested, planned, mocked, and placeholder behavior. Never let a visual prototype sound like a complete system integration.
+- Include verification evidence and explain what each check proves and what it does not prove.
+- Call out security boundaries explicitly, especially authentication, locking, privileged installation, target path validation, ownership, and secrets.
+- Keep explanations approachable but technically honest. Prefer concrete examples and small diagrams or ordered flows when they make the system easier to understand.
+
+Do not use “vibe coding” as the development model. Repository changes must be grounded in documented intent, current upstream behavior, observable tests, and an explanation the user can learn from.
+
 ## Testing expectations
 
 At minimum, provide automated checks for:

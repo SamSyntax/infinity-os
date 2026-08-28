@@ -2,43 +2,51 @@
 import argparse
 import json
 import os
-import shutil
+import secrets
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-MAPPINGS = REPO / "deployment" / "mappings.tsv"
+sys.path.insert(0, str(REPO / "installation/lib"))
+from safe_fs import atomic_write, read_regular, resolve_root, target_identity, validate_relative, validate_user
+
+MAPPINGS = REPO / "deployment/mappings.tsv"
 
 
 def parse_mappings():
     rows = []
-    for line_no, line in enumerate(
-        MAPPINGS.read_text(encoding="utf-8").splitlines(), 1
-    ):
+    for line_no, line in enumerate(MAPPINGS.read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip() or line.startswith("#"):
             continue
         parts = line.split("\t")
         if len(parts) != 4:
-            raise SystemExit(
-                f"bad mapping line {line_no}: expected 4 tab-separated fields"
-            )
-        rows.append(tuple(parts))
+            raise SystemExit(f"bad mapping line {line_no}: expected 4 tab-separated fields")
+        src, target, mode, preserve = parts
+        try:
+            src_path = validate_relative(src)
+            target_path = validate_relative(target)
+        except ValueError as error:
+            raise SystemExit(f"bad mapping line {line_no}: {error}") from error
+        if preserve not in {"yes", "no"}:
+            raise SystemExit(f"bad mapping line {line_no}: invalid preserve value {preserve!r}")
+        rows.append((src_path, target_path, int(mode, 8), preserve))
     return rows
 
 
-def copy_path(src, dest, mode):
-    if src.is_dir():
-        for item in src.rglob("*"):
-            if item.is_file():
-                child = dest / item.relative_to(src)
-                child.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(item, child)
-                os.chmod(child, int(mode, 8))
-    else:
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dest)
-        os.chmod(dest, int(mode, 8))
+def source_files(source: Path):
+    if source.is_symlink():
+        raise SystemExit(f"mapping source must not be a symlink: {source}")
+    if source.is_file():
+        yield source, Path(source.name)
+        return
+    if not source.is_dir():
+        raise SystemExit(f"mapping source missing: {source}")
+    for item in sorted(source.rglob("*")):
+        if item.is_symlink():
+            raise SystemExit(f"mapping source contains a symlink: {item}")
+        if item.is_file():
+            yield item, item.relative_to(source)
 
 
 def main():
@@ -47,41 +55,39 @@ def main():
     parser.add_argument("--target-root", default="/")
     parser.add_argument("--target-user", default=os.environ.get("USER", "user"))
     args = parser.parse_args()
-    root = Path(args.target_root).resolve()
-    home = root / "home" / args.target_user
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    manifest = {"timestamp": stamp, "targetUser": args.target_user, "files": []}
+    try:
+        root = resolve_root(args.target_root)
+        user = validate_user(args.target_user)
+        owner = None if args.dry_run else target_identity(root, user)
+    except (OSError, KeyError, ValueError) as error:
+        raise SystemExit(f"invalid deployment target: {error}") from error
+    home = root / "home" / user
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + secrets.token_hex(4)
+    manifest = {"timestamp": stamp, "targetUser": user, "files": []}
+
     for src_rel, target_rel, mode, preserve in parse_mappings():
         src = REPO / src_rel
-        if not src.exists():
-            raise SystemExit(f"mapping source missing: {src_rel}")
-        dest = (
-            (root / target_rel)
-            if target_rel.startswith("etc/")
-            else (home / target_rel)
-        )
+        system_target = target_rel.parts[0] == "etc" or target_rel.parts[:2] == ("usr", "share")
+        destination_root = root if system_target else home
+        base_destination = root / target_rel if system_target else home / target_rel
+        entries = list(source_files(src))
         if args.dry_run:
-            print(
-                f"PLAN deploy {src_rel} -> {dest} mode={mode} preserve_override={
-                    preserve
-                }"
-            )
+            print(f"PLAN deploy {src_rel} -> {base_destination} mode={mode:04o} preserve_override={preserve}")
             continue
-        if dest.exists() and preserve == "yes":
-            backup = home / ".local/share/infinity-os/backups" / stamp / target_rel
-            backup.parent.mkdir(parents=True, exist_ok=True)
-            if dest.is_dir():
-                shutil.copytree(dest, backup, dirs_exist_ok=True)
-            else:
-                shutil.copy2(dest, backup)
-        copy_path(src, dest, mode)
-        manifest["files"].append({"source": src_rel, "target": str(dest), "mode": mode})
+        for item, child in entries:
+            destination = base_destination if src.is_file() else base_destination / child
+            previous = read_regular(root, destination)
+            if previous is not None and preserve == "yes":
+                backup_relative = destination.relative_to(destination_root)
+                backup = home / ".local/share/infinity-os/backups" / stamp / ("system" if system_target else "user") / backup_relative
+                atomic_write(root, backup, previous[0], previous[1], owner)
+            file_owner = None if system_target else owner
+            atomic_write(root, destination, item.read_bytes(), mode, file_owner)
+            manifest["files"].append({"source": str(item.relative_to(REPO)), "target": str(destination), "mode": f"{mode:04o}"})
+
     if not args.dry_run:
         manifest_path = home / ".local/share/infinity-os/deployment-manifest.json"
-        manifest_path.parent.mkdir(parents=True, exist_ok=True)
-        manifest_path.write_text(
-            json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        atomic_write(root, manifest_path, (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode(), 0o644, owner)
 
 
 if __name__ == "__main__":

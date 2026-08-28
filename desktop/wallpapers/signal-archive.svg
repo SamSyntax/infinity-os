@@ -7,18 +7,19 @@
     <pattern id="scan" width="5" height="5" patternUnits="userSpaceOnUse">
       <rect width="5" height="1" fill="#d8d3c8" opacity="0.2"/>
     </pattern>
-    <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="3" seed="41" result="noise"/>
-      <feColorMatrix in="noise" type="saturate" values="0" result="mono"/>
-      <feComponentTransfer in="mono"><feFuncA type="table" tableValues="0 0.13"/></feComponentTransfer>
-    </filter>
+    <pattern id="grain" width="17" height="19" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="3" r="0.7" fill="#d8d3c8" opacity="0.2"/>
+      <circle cx="13" cy="7" r="0.45" fill="#817d75" opacity="0.3"/>
+      <circle cx="7" cy="15" r="0.55" fill="#d8d3c8" opacity="0.16"/>
+      <rect x="15" y="16" width="1" height="1" fill="#d8d3c8" opacity="0.2"/>
+    </pattern>
     <clipPath id="sculpture">
       <path d="M1105 92 C1244 70 1392 160 1394 310 C1395 405 1344 451 1298 493 C1350 544 1445 605 1462 745 C1337 820 1178 807 1069 745 C1012 712 981 653 997 596 C1014 538 1071 513 1099 475 C1030 422 984 356 990 269 C996 184 1032 116 1105 92 Z"/>
     </clipPath>
   </defs>
 
   <rect width="1600" height="900" fill="#090909"/>
-  <rect width="1600" height="900" fill="#ffffff" filter="url(#paper)" opacity="0.42"/>
+  <rect width="1600" height="900" fill="url(#grain)" opacity="0.42"/>
 
   <g stroke="#34322f" fill="none">
     <path d="M72 70 H742"/>

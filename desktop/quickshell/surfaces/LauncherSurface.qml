@@ -15,7 +15,7 @@ PopupWindow {
     implicitHeight: 430
     visible: Quickshell.env("INFINITY_QA") === "launcher"
     color: "transparent"
-    grabFocus: true
+    grabFocus: Quickshell.env("INFINITY_QA") === ""
 
     ListModel {
         id: results
