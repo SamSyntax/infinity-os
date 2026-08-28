@@ -47,7 +47,7 @@ sudo ./install.sh --confirm --stage preview --target-user sam
 What this writes:
 
 1. It validates the repository before any package change. Invalid source files stop the run before pacman.
-2. It runs one official package transaction: `pacman -Syu --needed --noconfirm ...`. `-Syu` syncs package databases and upgrades the VM as part of installing the preview packages. `--noconfirm` is acceptable here only because the installer-level `--confirm` is the explicit confirmation gate.
+2. It runs one official package transaction: `/usr/bin/pacman -Syu --needed --noconfirm -- ...`. `-Syu` syncs package databases and upgrades the VM as part of installing the preview packages. `--noconfirm` is acceptable here only because the installer-level `--confirm` is the explicit confirmation gate. The `--` separates pacman options from package names.
 3. It deploys only user mappings under `/home/sam`, such as Hyprland, Quickshell, hyprlock, and hypridle configuration. Existing user files are backed up under `/home/sam/.local/share/infinity-os/backups/` before replacement. It deliberately skips system mappings such as greetd and shared greeter wallpaper.
 4. It applies the `Signal Archive` theme to user configuration and current wallpaper state.
 5. It writes an installer log under `/var/log/infinity-os/install.log`.

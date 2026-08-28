@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 import os
 import subprocess
 import sys
@@ -7,7 +7,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "installation/lib"))
-from safe_fs import append_regular, init_regular, resolve_root
+from safe_fs import append_regular, init_regular, read_existing_regular, resolve_root, validate_relative
 
 
 def run(*arguments):
@@ -72,6 +72,38 @@ def main():
             raise SystemExit("safe log append accepted a symlinked file")
         if outside.read_text(encoding="utf-8") != "outside\n":
             raise SystemExit("safe log append escaped through a symlink")
+
+    if Path("/") / validate_relative("var/log/infinity-os/install.log") != Path("/var/log/infinity-os/install.log"):
+        raise SystemExit("live-root log destination is not /var/log/infinity-os/install.log")
+
+    with tempfile.TemporaryDirectory(prefix="infinity-safe-source-") as tmp:
+        root = Path(tmp)
+        source = root / "source.txt"
+        source.write_text("safe\n", encoding="utf-8")
+        if read_existing_regular(root, source) != b"safe\n":
+            raise SystemExit("safe source read returned wrong data")
+        final_link = root / "final-link.txt"
+        final_link.symlink_to(source)
+        try:
+            read_existing_regular(root, final_link)
+        except OSError:
+            pass
+        else:
+            raise SystemExit("safe source read accepted final symlink")
+
+    with tempfile.TemporaryDirectory(prefix="infinity-safe-source-parent-") as tmp:
+        root = Path(tmp)
+        real = root / "real"
+        real.mkdir()
+        (real / "source.txt").write_text("safe\n", encoding="utf-8")
+        linked = root / "linked"
+        linked.symlink_to(real, target_is_directory=True)
+        try:
+            read_existing_regular(root, linked / "source.txt")
+        except OSError:
+            pass
+        else:
+            raise SystemExit("safe source read accepted symlinked parent")
     print("ok: safe target paths")
 
 

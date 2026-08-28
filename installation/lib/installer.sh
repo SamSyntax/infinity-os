@@ -1,5 +1,10 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 set -Eeuo pipefail
+PATH=/usr/bin:/bin
+export PATH
+
+INFINITY_PYTHON=/usr/bin/python3
+INFINITY_LOG_RELATIVE=var/log/infinity-os/install.log
 
 INFINITY_STAGES=(preflight repositories base hardware wayland desktop-shell applications services boot greeter themes deploy validate preview)
 INFINITY_APPLY_STAGES=(preflight themes deploy validate preview)
@@ -64,15 +69,11 @@ infinity_validate_apply_selection() {
 
 infinity_log_append() {
   [[ $INFINITY_DRY_RUN == 1 ]] && return 0
-  PYTHONPATH="$INFINITY_REPO/installation/lib" python3 - "$INFINITY_TARGET_ROOT" "$INFINITY_LOG" "$1" <<'PY'
-import os
+  PYTHONPATH="$INFINITY_REPO/installation/lib" "$INFINITY_PYTHON" - "$INFINITY_TARGET_ROOT" "$INFINITY_LOG_RELATIVE" "$1" <<'PY'
 import sys
-from pathlib import Path
-from safe_fs import append_regular, resolve_root
+from safe_fs import append_regular, resolve_root, validate_relative
 root = resolve_root(sys.argv[1])
-destination = Path(sys.argv[2])
-if not destination.is_absolute():
-    destination = Path(os.path.abspath(destination))
+destination = root / validate_relative(sys.argv[2])
 append_regular(root, destination, (sys.argv[3] + "\n").encode(), 0o644)
 PY
 }
@@ -99,7 +100,7 @@ infinity_manifest_packages() {
   local group=$1
   local file="$INFINITY_REPO/system/packages/$group.official.txt"
   [[ -f $file ]] || return 0
-  python3 - "$file" <<'PY'
+  "$INFINITY_PYTHON" - "$file" <<'PY'
 import os
 import sys
 for line in open(sys.argv[1], encoding='utf-8'):
@@ -110,11 +111,11 @@ PY
 }
 
 infinity_preview_packages() {
-  local file="$INFINITY_REPO/installation/preview-packages.official.txt"
-  python3 - "$file" <<'PY'
+  local file="${1:-$INFINITY_REPO/installation/preview-packages.official.txt}"
+  "$INFINITY_PYTHON" - "$file" <<'PY'
 import re
 import sys
-pattern = re.compile(r"^[a-z0-9@._+-]+$")
+pattern = re.compile(r"^[a-z0-9][a-z0-9@._+-]*$")
 for line_no, line in enumerate(open(sys.argv[1], encoding="utf-8"), 1):
     item = line.split("#", 1)[0].strip()
     if not item:
@@ -126,14 +127,22 @@ PY
 }
 
 infinity_install_preview_packages() {
+  local argv=() output
+  output=$(infinity_preview_pacman_argv "$@") || return
+  mapfile -t argv <<<"$output"
+  ((${#argv[@]})) || infinity_die "preview pacman command is empty"
+  "${argv[@]}"
+}
+
+infinity_preview_pacman_argv() {
   local packages=()
-  mapfile -t packages < <(infinity_preview_packages)
+  mapfile -t packages < <(infinity_preview_packages "$@")
   ((${#packages[@]})) || infinity_die "preview package manifest is empty"
-  pacman -Syu --needed --noconfirm "${packages[@]}"
+  printf '%s\n' /usr/bin/pacman -Syu --needed --noconfirm -- "${packages[@]}"
 }
 
 infinity_resolved_root() {
-  python3 - "$1" <<'PY'
+  "$INFINITY_PYTHON" - "$1" <<'PY'
 import sys
 from pathlib import Path
 print(Path(sys.argv[1]).resolve(strict=True))
@@ -145,7 +154,7 @@ infinity_preview_preflight() {
   resolved=$(infinity_resolved_root "$INFINITY_TARGET_ROOT") || infinity_die "cannot resolve target root '$INFINITY_TARGET_ROOT'"
   [[ $resolved == / ]] || infinity_die "preview apply only supports --target-root / on the running VM; got '$resolved'. Use --plan for other roots."
   [[ ${EUID:-$(id -u)} == 0 ]] || infinity_die "preview apply must run as root with sudo so pacman and user deployment can write to the VM"
-  command -v pacman >/dev/null || infinity_die "preview apply requires pacman in PATH; run this on an already bootable Arch VM, not this development host or a non-Arch environment"
+  [[ -x /usr/bin/pacman ]] || infinity_die "preview apply requires executable /usr/bin/pacman; run this on an already bootable Arch VM, not this development host or a non-Arch environment"
   getent passwd "$INFINITY_TARGET_USER" >/dev/null || infinity_die "target user '$INFINITY_TARGET_USER' does not exist on this VM"
   uid=$(getent passwd "$INFINITY_TARGET_USER" | cut -d: -f3)
   home=$(getent passwd "$INFINITY_TARGET_USER" | cut -d: -f6)
@@ -214,7 +223,7 @@ infinity_run_stage() {
     preview)
       if [[ $INFINITY_DRY_RUN == 1 ]]; then
         infinity_log "PLAN preview: validate repository before package writes"
-        infinity_log "PLAN preview packages: pacman -Syu --needed --noconfirm $(infinity_preview_packages | paste -sd ' ' -)"
+        infinity_log "PLAN preview packages: /usr/bin/pacman -Syu --needed --noconfirm -- $(infinity_preview_packages | paste -sd ' ' -)"
         infinity_log "PLAN preview deploy: infinity-deploy --scope user --target-root $INFINITY_TARGET_ROOT --target-user $INFINITY_TARGET_USER --dry-run"
         "$INFINITY_REPO/bin/infinity-deploy" --scope user --target-root "$INFINITY_TARGET_ROOT" --target-user "$INFINITY_TARGET_USER" --dry-run
         infinity_log "PLAN preview theme: apply Signal Archive to user config"
@@ -283,15 +292,12 @@ infinity_installer_main() {
   if [[ $INFINITY_DRY_RUN == 1 ]]; then
     INFINITY_LOG=/dev/null
   else
-    INFINITY_LOG="$INFINITY_TARGET_ROOT/var/log/infinity-os/install.log"
-    PYTHONPATH="$INFINITY_REPO/installation/lib" python3 - "$INFINITY_TARGET_ROOT" "$INFINITY_LOG" <<'PY'
+    INFINITY_LOG=$INFINITY_LOG_RELATIVE
+    PYTHONPATH="$INFINITY_REPO/installation/lib" "$INFINITY_PYTHON" - "$INFINITY_TARGET_ROOT" "$INFINITY_LOG_RELATIVE" <<'PY'
 import sys
-from pathlib import Path
-from safe_fs import init_regular, resolve_root
+from safe_fs import init_regular, resolve_root, validate_relative
 root = resolve_root(sys.argv[1])
-destination = Path(sys.argv[2])
-if not destination.is_absolute():
-    destination = Path(os.path.abspath(destination))
+destination = root / validate_relative(sys.argv[2])
 init_regular(root, destination, 0o644)
 PY
   fi

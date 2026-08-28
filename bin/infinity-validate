@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 import json
 import os
 import re
@@ -57,7 +57,7 @@ def lua_syntax():
 
 def package_manifests():
     seen = {}
-    pattern = re.compile(r"^[a-z0-9@._+-]+$")
+    pattern = re.compile(r"^[a-z0-9][a-z0-9@._+-]*$")
     for path in sorted((REPO / "system/packages").glob("*.txt")):
         for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             item = line.split("#", 1)[0].strip()
@@ -234,6 +234,25 @@ def qml_hook():
     for path in sorted((REPO / "desktop/quickshell").rglob("*.qml")):
         run(f"qml format check {path.relative_to(REPO)}", [qmlformat, "-n", str(path)])
 
+def hyprland_theme_bridge():
+    hyprland = (REPO / "desktop/hypr/hyprland.lua").read_text(encoding="utf-8")
+    bridge_path = REPO / "desktop/hypr/modules/theme.lua"
+    bridge = bridge_path.read_text(encoding="utf-8") if bridge_path.is_file() else ""
+    theme_source = (REPO / "bin/infinity-theme").read_text(encoding="utf-8")
+    if 'require("modules.decoration")\nrequire("modules.theme")' not in hyprland:
+        fail("Hyprland theme bridge", "hyprland.lua must load modules.theme after decoration")
+    if 'require("modules.theme")\nrequire("modules.animations")' not in hyprland:
+        fail("Hyprland theme bridge", "modules.theme must load before later modules and user overrides")
+    if "generated-theme.lua" not in bridge:
+        fail("Hyprland theme bridge", "bridge must reference generated-theme.lua")
+    if ".config/hypr/generated-theme.lua" not in theme_source or ".config/hypr/generated-theme.conf" in theme_source:
+        fail("Hyprland theme bridge", "theme renderer must emit Lua and not the old .conf path")
+    rendered = subprocess.run([sys.executable, str(REPO / "bin/infinity-theme"), "apply", "signal-archive", "--dry-run", "--target-user", "tester"], cwd=REPO, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if rendered.returncode != 0 or "generated-theme.lua" not in rendered.stdout or "generated-theme.conf" in rendered.stdout:
+        fail("Hyprland theme bridge", "dry-run output must include generated-theme.lua only")
+    if not any(f.startswith("Hyprland theme bridge") for f in failures):
+        ok("Hyprland theme bridge")
+
 def installer_dry_run():
     with tempfile.TemporaryDirectory(prefix="infinity-validate-") as tmp:
         run("installer dry-run", [str(REPO / "install.sh"), "--plan", "--target-root", tmp, "--target-user", "testuser", "--stage", "preflight"])
@@ -269,6 +288,7 @@ def main():
     duplicate_bindings()
     command_refs()
     qml_hook()
+    hyprland_theme_bridge()
     installer_dry_run()
     session_foundation()
     repository_tests()

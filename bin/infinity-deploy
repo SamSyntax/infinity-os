@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 import argparse
 import json
 import os
@@ -9,7 +9,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "installation/lib"))
-from safe_fs import atomic_write, read_regular, resolve_root, target_identity, validate_relative, validate_user
+from safe_fs import atomic_write, read_existing_regular, read_regular, resolve_root, target_identity, validate_relative, validate_user
 
 MAPPINGS = REPO / "deployment/mappings.tsv"
 
@@ -85,7 +85,7 @@ def main():
                 backup = home / ".local/share/infinity-os/backups" / stamp / ("system" if system_target else "user") / backup_relative
                 atomic_write(root, backup, previous[0], previous[1], owner)
             file_owner = None if system_target else owner
-            atomic_write(root, destination, item.read_bytes(), mode, file_owner)
+            atomic_write(root, destination, read_existing_regular(REPO, item), mode, file_owner)
             manifest["files"].append({"source": str(item.relative_to(REPO)), "target": str(destination), "mode": f"{mode:04o}"})
 
     if not args.dry_run:

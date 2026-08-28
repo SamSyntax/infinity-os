@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 import re
 from pathlib import Path
 
@@ -20,7 +20,7 @@ REQUIRED = {
 
 
 def main():
-    pattern = re.compile(r"^[a-z0-9@._+-]+$")
+    pattern = re.compile(r"^[a-z0-9][a-z0-9@._+-]*$")
     packages = []
     for line_no, line in enumerate(MANIFEST.read_text(encoding="utf-8").splitlines(), 1):
         item = line.split("#", 1)[0].strip()

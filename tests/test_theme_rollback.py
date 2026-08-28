@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 import os
 import subprocess
 import sys
@@ -28,6 +28,32 @@ def run_theme_with_fault(root):
     )
 
 def main():
+    with tempfile.TemporaryDirectory(prefix="infinity-theme-hyprland-") as tmp:
+        root = Path(tmp)
+        passwd = root / "etc/passwd"
+        passwd.parent.mkdir()
+        passwd.write_text(
+            f"testuser:x:{os.geteuid()}:{os.getegid()}:Test User:/home/testuser:/bin/bash\n",
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [sys.executable, str(REPO / "bin/infinity-theme"), "apply", "signal-archive", "--target-root", str(root), "--target-user", "testuser"],
+            cwd=REPO,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if result.returncode != 0:
+            raise SystemExit(result.stdout + result.stderr)
+        generated = root / "home/testuser/.config/hypr/generated-theme.lua"
+        old = root / "home/testuser/.config/hypr/generated-theme.conf"
+        if not generated.is_file() or old.exists():
+            raise SystemExit("Hyprland theme output did not switch from .conf to .lua")
+        content = generated.read_text(encoding="utf-8")
+        for expected in ["hl.config({", "active_border", "inactive_border", "rgba(", "rounding", "blur"]:
+            if expected not in content:
+                raise SystemExit(f"Hyprland Lua theme output omitted {expected}")
+
     with tempfile.TemporaryDirectory(prefix="infinity-theme-rollback-") as tmp:
         root = Path(tmp)
         passwd = root / "etc/passwd"

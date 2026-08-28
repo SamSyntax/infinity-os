@@ -28,7 +28,7 @@ Use a virtual machine or sacrificial Arch installation. The current installer do
    ```sh
    sudo ./install.sh --confirm --stage preview --target-user youruser
    ```
-   This is not the full installer. It requires root because it runs one official `pacman -Syu --needed --noconfirm ...` transaction, which performs a full system package database sync/upgrade before installing the preview packages. It only supports the live VM root `/`; it does not chroot into arbitrary target roots. Before pacman runs, the repository validator must pass. After packages install, the installer deploys only user-owned mappings under `/home/youruser` with the normal backup behavior, applies the `Signal Archive` theme, and prints exact TTY launch instructions. If user deployment or theme application later fails, packages may remain installed; fix the reported issue and rerun the same command.
+   This is not the full installer. It requires root because it runs one official `/usr/bin/pacman -Syu --needed --noconfirm -- ...` transaction, which performs a full system package database sync/upgrade before installing the preview packages. It only supports the live VM root `/`; it does not chroot into arbitrary target roots. Before pacman runs, the repository validator must pass. After packages install, the installer deploys only user-owned mappings under `/home/youruser` with the normal backup behavior, applies the `Signal Archive` theme, and prints exact TTY launch instructions. If user deployment or theme application later fails, packages may remain installed; fix the reported issue and rerun the same command.
 
    To launch, log out or switch to a TTY, log in as `youruser`, then run:
    ```sh

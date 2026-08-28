@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 import argparse
 import json
 import os
@@ -8,7 +8,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "installation/lib"))
-from safe_fs import atomic_write, read_regular, remove_regular, resolve_root, target_identity, validate_relative, validate_user
+from safe_fs import atomic_write, read_existing_regular, read_regular, remove_regular, resolve_root, target_identity, validate_relative, validate_user
 
 THEMES = REPO / "desktop/themes"
 THEME_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
@@ -40,11 +40,18 @@ def command_preview(args):
 
 def render_files(theme):
     palette = theme["palette"]
-    active = " ".join(theme["hyprland"]["activeBorder"])
+    def rgba(color, alpha="ee"):
+        return f"rgba({color.removeprefix('#')}{alpha})"
+    active = ", ".join(f'"{rgba(color)}"' for color in theme["hyprland"]["activeBorder"])
+    inactive = rgba(theme["hyprland"]["inactiveBorder"], "aa")
+    blur = "true" if theme["hyprland"]["blur"] else "false"
     return {
         ".config/infinity-os/theme.json": json.dumps(theme, indent=2, sort_keys=True) + "\n",
         ".config/quickshell/generated/theme.json": json.dumps(theme["quickshell"] | {"palette": palette}, indent=2, sort_keys=True) + "\n",
-        ".config/hypr/generated-theme.conf": f"$infinity_active_border = {active}\n$infinity_inactive_border = {theme['hyprland']['inactiveBorder']}\n",
+        ".config/hypr/generated-theme.lua": "hl.config({\n"
+        f"  general = {{ col = {{ active_border = {{ colors = {{ {active} }}, angle = 35 }}, inactive_border = \"{inactive}\" }} }},\n"
+        f"  decoration = {{ rounding = {theme['hyprland']['rounding']}, blur = {{ enabled = {blur} }} }},\n"
+        "})\n",
         ".config/ghostty/themes/infinity.conf": f"background = {theme['terminal']['background']}\nforeground = {theme['terminal']['foreground']}\npalette = 4={theme['terminal']['accent']}\n",
         ".config/tmux/infinity-theme.conf": f"set -g status-bg '{theme['tmux']['statusBg']}'\nset -g status-fg '{theme['tmux']['statusFg']}'\n",
         ".config/nvim/lua/infinity_theme.lua": f"return {{ flavor = '{theme['neovim']['flavor']}', accent = '{theme['neovim']['accent']}' }}\n",
@@ -87,7 +94,7 @@ def command_apply(args):
     rendered = render_files(theme)
     planned = {home / validate_relative(relative): data.encode() for relative, data in rendered.items()}
     wallpaper_destination = home / ".local/share/infinity-os/current-wallpaper.svg"
-    planned[wallpaper_destination] = wallpaper_src.read_bytes()
+    planned[wallpaper_destination] = read_existing_regular(REPO, wallpaper_src)
     if args.dry_run:
         print(f"DRY-RUN apply theme {theme['id']} to {home}")
         for destination in sorted(planned):

@@ -92,6 +92,31 @@ def read_regular(root: Path, destination: Path):
         os.close(parent_fd)
 
 
+def read_existing_regular(root: Path, source: Path) -> bytes:
+    relative = source.relative_to(root)
+    fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        for part in relative.parts[:-1]:
+            next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            os.close(fd)
+            fd = next_fd
+        file_fd = os.open(relative.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=fd)
+        try:
+            metadata = os.fstat(file_fd)
+            if not stat.S_ISREG(metadata.st_mode):
+                raise ValueError(f"refusing non-regular source: {source}")
+            chunks = []
+            while True:
+                chunk = os.read(file_fd, 1024 * 1024)
+                if not chunk:
+                    return b"".join(chunks)
+                chunks.append(chunk)
+        finally:
+            os.close(file_fd)
+    finally:
+        os.close(fd)
+
+
 def atomic_write(root: Path, destination: Path, data: bytes, mode: int, owner=None):
     parent_fd, name = _open_parent(root, destination, owner)
     temporary = f".infinity-{secrets.token_hex(12)}"
