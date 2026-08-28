@@ -54,6 +54,7 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--target-root", default="/")
     parser.add_argument("--target-user", default=os.environ.get("USER", "user"))
+    parser.add_argument("--scope", choices=("all", "user"), default="all")
     args = parser.parse_args()
     try:
         root = resolve_root(args.target_root)
@@ -68,6 +69,8 @@ def main():
     for src_rel, target_rel, mode, preserve in parse_mappings():
         src = REPO / src_rel
         system_target = target_rel.parts[0] == "etc" or target_rel.parts[:2] == ("usr", "share")
+        if args.scope == "user" and system_target:
+            continue
         destination_root = root if system_target else home
         base_destination = root / target_rel if system_target else home / target_rel
         entries = list(source_files(src))

@@ -1,0 +1,21 @@
+# Minimal official packages for the manually launched VM preview.
+# This file is intentionally outside system/packages/*.txt so full-manifest
+# duplicate validation keeps checking milestone package groups independently.
+hyprland
+quickshell
+ghostty
+hypridle
+hyprlock
+xdg-desktop-portal
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+qt6-wayland
+ttf-ibm-plex
+noto-fonts
+walker
+cliphist
+wl-clipboard
+grim
+slurp
+swappy
+nautilus

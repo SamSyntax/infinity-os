@@ -61,7 +61,9 @@ def _open_parent(root: Path, destination: Path, owner=None):
                 if owner is not None:
                     os.chown(part, owner[0], owner[1], dir_fd=fd, follow_symlinks=False)
             except FileExistsError:
-                pass
+                metadata = os.stat(part, dir_fd=fd, follow_symlinks=False)
+                if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+                    raise ValueError(f"refusing unsafe destination parent: {destination}")
             next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
             os.close(fd)
             fd = next_fd
@@ -123,6 +125,64 @@ def atomic_write(root: Path, destination: Path, data: bytes, mode: int, owner=No
         except OSError as error:
             if error.errno != errno.ENOENT:
                 raise
+        os.close(parent_fd)
+
+
+def init_regular(root: Path, destination: Path, mode: int = 0o644, owner=None):
+    parent_fd, name = _open_parent(root, destination, owner)
+    try:
+        try:
+            current = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+            if stat.S_ISLNK(current.st_mode) or not stat.S_ISREG(current.st_mode):
+                raise ValueError(f"refusing unsafe log destination: {destination}")
+        except FileNotFoundError:
+            pass
+        fd = os.open(
+            name,
+            os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW,
+            mode,
+            dir_fd=parent_fd,
+        )
+        try:
+            os.fchmod(fd, mode)
+            if owner is not None:
+                os.fchown(fd, owner[0], owner[1])
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    finally:
+        os.close(parent_fd)
+
+
+def append_regular(root: Path, destination: Path, data: bytes, mode: int = 0o644, owner=None):
+    parent_fd, name = _open_parent(root, destination, owner)
+    try:
+        try:
+            current = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+            if stat.S_ISLNK(current.st_mode) or not stat.S_ISREG(current.st_mode):
+                raise ValueError(f"refusing unsafe log destination: {destination}")
+        except FileNotFoundError:
+            pass
+        fd = os.open(
+            name,
+            os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW,
+            mode,
+            dir_fd=parent_fd,
+        )
+        try:
+            pending = memoryview(data)
+            while pending:
+                written = os.write(fd, pending)
+                if written == 0:
+                    raise OSError(errno.EIO, f"short write appending to {destination}")
+                pending = pending[written:]
+            os.fchmod(fd, mode)
+            if owner is not None:
+                os.fchown(fd, owner[0], owner[1])
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    finally:
         os.close(parent_fd)
 
 

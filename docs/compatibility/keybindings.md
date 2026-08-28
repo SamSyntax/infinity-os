@@ -18,6 +18,7 @@ This file is the canonical compatibility inventory. `docs/compatibility/hyprland
 | Hyprland | Super+Q | close window | close focused window | `hl.dsp.window.close()` | preserved |
 | Hyprland | Super+F | fullscreen | fullscreen focused window | `hl.dsp.window.fullscreen` | preserved |
 | Hyprland | Super+R | apps menu | open app launcher | `walker` | Omarchy command avoided |
+| Infinity distro | Super+Shift+M | distro-only session exit | exit manual Hyprland preview | `hyprctl dispatch exit` | new non-conflicting VM preview escape hatch |
 | Hyprland | Super+mouse_down/up | cursor zoom | zoom in/out | cursor zoom helper | preserved |
 | Hyprland | Super+equal/minus/KP_ADD/KP_SUBTRACT | cursor zoom | keyboard zoom in/out | cursor zoom helper | preserved |
 | Hyprland | Super+Shift+mouse_up/down/minus/KP_SUBTRACT, Super+Ctrl+1 | reset cursor zoom | return zoom to 1 | cursor zoom reset helper | preserved |

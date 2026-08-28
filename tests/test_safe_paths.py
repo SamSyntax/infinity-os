@@ -6,6 +6,8 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "installation/lib"))
+from safe_fs import append_regular, init_regular, resolve_root
 
 
 def run(*arguments):
@@ -38,6 +40,38 @@ def main():
         require_failure(result, "symlinked theme destination")
         if any(outside.iterdir()):
             raise SystemExit("theme write escaped through a symlink")
+
+    with tempfile.TemporaryDirectory(prefix="infinity-safe-log-") as tmp:
+        root = Path(tmp)
+        resolved = resolve_root(str(root))
+        outside = root / "outside"
+        outside.mkdir()
+        log_parent = root / "var/log"
+        log_parent.parent.mkdir()
+        log_parent.symlink_to(outside, target_is_directory=True)
+        try:
+            init_regular(resolved, root / "var/log/infinity-os/install.log")
+        except ValueError:
+            pass
+        else:
+            raise SystemExit("safe log initialization accepted a symlinked parent")
+
+    with tempfile.TemporaryDirectory(prefix="infinity-safe-log-file-") as tmp:
+        root = Path(tmp)
+        resolved = resolve_root(str(root))
+        outside = root / "outside.log"
+        outside.write_text("outside\n", encoding="utf-8")
+        log = root / "var/log/infinity-os/install.log"
+        log.parent.mkdir(parents=True)
+        log.symlink_to(outside)
+        try:
+            append_regular(resolved, log, b"escape\n")
+        except ValueError:
+            pass
+        else:
+            raise SystemExit("safe log append accepted a symlinked file")
+        if outside.read_text(encoding="utf-8") != "outside\n":
+            raise SystemExit("safe log append escaped through a symlink")
     print("ok: safe target paths")
 
 

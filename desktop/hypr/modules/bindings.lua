@@ -26,6 +26,7 @@ o.replace("SUPER + J", "Focus down", hl.dsp.focus({ direction = "d" }))
 o.replace("SUPER + Q", "Close window", hl.dsp.window.close())
 o.replace("SUPER + F", "Fullscreen", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 o.replace("SUPER + R", "Apps", "walker")
+o.replace("SUPER + SHIFT + M", "Exit session", "hyprctl dispatch exit")
 
 local function set_zoom(value)
   hl.config({ cursor = { zoom_factor = math.max(1, value) } })

@@ -71,6 +71,26 @@ def package_manifests():
     if not any(f.startswith("package manifests") for f in failures):
         ok("package manifests")
 
+def preview_manifest():
+    path = REPO / "installation/preview-packages.official.txt"
+    required = {"hyprland", "quickshell", "ghostty", "hypridle", "hyprlock", "xdg-desktop-portal", "xdg-desktop-portal-hyprland", "xdg-desktop-portal-gtk", "qt6-wayland", "ttf-ibm-plex", "noto-fonts"}
+    pattern = re.compile(r"^[a-z0-9@._+-]+$")
+    packages = []
+    for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        item = line.split("#", 1)[0].strip()
+        if not item:
+            continue
+        if not pattern.match(item):
+            fail("preview package manifest", f"invalid package {item} at {path}:{line_no}")
+        packages.append(item)
+    missing = required - set(packages)
+    if missing:
+        fail("preview package manifest", f"missing required packages: {sorted(missing)}")
+    if len(packages) != len(set(packages)):
+        fail("preview package manifest", "duplicate package token")
+    if not any(f.startswith("preview package manifest") for f in failures):
+        ok("preview package manifest")
+
 def themes():
     schema = json.loads((REPO / "desktop/themes/schema.json").read_text(encoding="utf-8"))
     required = set(schema["required"])
@@ -162,10 +182,13 @@ def mappings():
 
 def duplicate_bindings():
     path = REPO / "desktop/hypr/modules/bindings.lua"
-    keys = re.findall(r'o\.replace\("([^"]+)"', path.read_text(encoding="utf-8"))
+    source = path.read_text(encoding="utf-8")
+    keys = re.findall(r'o\.replace\("([^"]+)"', source)
     dupes = sorted(k for k in set(keys) if keys.count(k) > 1)
     if dupes:
         fail("duplicate keybindings", ", ".join(dupes))
+    elif 'o.replace("SUPER + SHIFT + M", "Exit session", "hyprctl dispatch exit")' not in source:
+        fail("duplicate keybindings", "missing exact Super+Shift+M exit binding")
     else:
         ok("duplicate keybindings")
 
@@ -240,6 +263,7 @@ def main():
     python_syntax()
     lua_syntax()
     package_manifests()
+    preview_manifest()
     themes()
     mappings()
     duplicate_bindings()

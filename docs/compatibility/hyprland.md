@@ -18,6 +18,7 @@ Source: active `/home/sam/.config/hypr/bindings.lua`, read-only. Private paths a
 | Super+Q | close | `hl.dsp.window.close` | preserved |
 | Super+F | fullscreen | `hl.dsp.window.fullscreen` | preserved |
 | Super+R | apps | `walker` | preserved intent; no Omarchy command |
+| Super+Shift+M | distro-only session exit | `hyprctl dispatch exit` | new non-conflicting VM preview escape hatch |
 | Super+mouse/equal/minus/KP | zoom/reset | cursor zoom helpers | preserved |
 | Super+V | clipboard | `cliphist | walker | wl-copy` | preserved |
 | Super+Z | Quickshell toggle | repo path aware command | preserved |
@@ -28,4 +29,4 @@ Source: active `/home/sam/.config/hypr/bindings.lua`, read-only. Private paths a
 | Super+Shift+U | move special | `move special:special` | preserved |
 | Super+N | toggle split | `hl.dsp.layout("togglesplit")` | preserved |
 
-Effective overrides/conflicts: Super+M is the final layout toggle and supersedes an older Spotify intent. Screenshot command is replaced because Omarchy helpers are not part of this repository. No broad new keymap is introduced.
+Effective overrides/conflicts: Super+M is the final layout toggle and supersedes an older Spotify intent. Screenshot command is replaced because Omarchy helpers are not part of this repository. Super+Shift+M is distro-only so a manually launched VM preview has an obvious exit path. No broad new keymap is introduced.

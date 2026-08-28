@@ -24,13 +24,24 @@ Use a virtual machine or sacrificial Arch installation. The current installer do
    ./bin/infinity-theme apply signal-archive --dry-run --target-user "$USER"
    ```
    These commands only read theme data or print planned user-home writes. `Signal Archive` is the original warm-monochrome, halftone/distortion edition.
-5. Apply only inside the VM after reviewing the plan:
+5. Apply a minimal manual Hyprland + Quickshell preview only inside the already bootable VM:
+   ```sh
+   sudo ./install.sh --confirm --stage preview --target-user youruser
+   ```
+   This is not the full installer. It requires root because it runs one official `pacman -Syu --needed --noconfirm ...` transaction, which performs a full system package database sync/upgrade before installing the preview packages. It only supports the live VM root `/`; it does not chroot into arbitrary target roots. Before pacman runs, the repository validator must pass. After packages install, the installer deploys only user-owned mappings under `/home/youruser` with the normal backup behavior, applies the `Signal Archive` theme, and prints exact TTY launch instructions. If user deployment or theme application later fails, packages may remain installed; fix the reported issue and rerun the same command.
+
+   To launch, log out or switch to a TTY, log in as `youruser`, then run:
+   ```sh
+   Hyprland --config "$HOME/.config/hypr/hyprland.lua"
+   ```
+   Use `Super+Return` to open Ghostty and `Super+Shift+M` to exit Hyprland back to the TTY. VM 3D acceleration may be required for Hyprland to start.
+6. Apply the older staged repository deployment only inside a mounted test root after reviewing the plan:
    ```sh
    ./install.sh --confirm --target-root /mnt/infinity-root --target-user youruser --stage preflight --stage themes --stage deploy --stage validate
    ```
    This only applies the supported stages. The default `--confirm` run fails fast because the full stage list still includes plan-only stages such as base, hardware, wayland, desktop-shell, applications, services, boot, and greeter. Use a writable mounted target root; existing mapped user configuration is copied to `~/.local/share/infinity-os/backups/` before replacement. The deployment record is `~/.local/share/infinity-os/deployment-manifest.json`.
 
-The installer never partitions disks. Plan mode is the safe development default. Apply mode currently works only for `preflight`, `themes`, `deploy`, and `validate`; the other stages are plan-only and make `--confirm` fail before any writes.
+The installer never partitions disks. Plan mode is the safe development default. Apply mode currently works only for `preflight`, `themes`, `deploy`, `validate`, and the live-root-only `preview`; the other stages are plan-only and make default `--confirm` fail before any writes.
 
 ## How the pieces connect
 
@@ -46,6 +57,7 @@ The installer never partitions disks. Plan mode is the safe development default.
 ```sh
 ./install.sh --help
 ./install.sh --plan --target-root /tmp --target-user testuser
+./install.sh --plan --stage preview --target-user testuser
 ./install.sh --confirm --target-root /tmp/infinity-root --target-user testuser --stage preflight --stage themes --stage deploy --stage validate
 ./bin/infinity-validate
 ./bin/infinity-theme list
@@ -56,9 +68,9 @@ The installer never partitions disks. Plan mode is the safe development default.
 
 ## Current status
 
-- Implemented and repository-tested: staged plan/apply CLI, grouped package manifests, symlink-safe deployment with backups and a manifest, modular Hyprland Lua, theme schema/rollback CLI, three original themes and wallpapers, and one validation command.
+- Implemented and repository-tested: staged plan/apply CLI, live-root-only preview stage, grouped package manifests, symlink-safe deployment/logging with backups and a manifest, modular Hyprland Lua, theme schema/rollback CLI, three original themes and wallpapers, and one validation command.
 - Implemented and runtime-loaded on the development host: modular Quickshell wallpaper, rail, expandable system-state surface, launcher shell, OSD, shared theme service, and animated theme previews.
-- Template-only, not applied or VM-tested yet: systemd-boot/Plymouth rendering, package installation, hardware selection, service enablement, greetd/ReGreet login, and the hypridle/hyprlock lifecycle.
+- Template-only, not applied or VM-tested yet: systemd-boot/Plymouth rendering, full package installation, hardware selection, service enablement, greetd/ReGreet login, and the hypridle/hyprlock lifecycle.
 - Mocked/placeholder backends: launcher indexing/activation, live network/Bluetooth/power values, OSD system events, and theme-preview commit wiring.
 - Runtime services are not claimed tested on this host.
 
