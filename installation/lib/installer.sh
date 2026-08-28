@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 INFINITY_STAGES=(preflight repositories base hardware wayland desktop-shell applications services boot greeter themes deploy validate)
+INFINITY_APPLY_STAGES=(preflight themes deploy validate)
 
 infinity_usage() {
   cat <<'USAGE'
@@ -18,6 +19,9 @@ Options:
 Stages:
   preflight,repositories,base,hardware,wayland,desktop-shell,applications,services,boot,greeter,themes,deploy,validate
 
+Apply-capable stages:
+  preflight,themes,deploy,validate
+
 No disk partitioning is performed.
 USAGE
 }
@@ -33,6 +37,24 @@ infinity_has_stage() {
     [[ $stage == "$wanted" ]] && return 0
   done
   return 1
+}
+
+infinity_has_apply_stage() {
+  local wanted=$1 stage
+  for stage in "${INFINITY_APPLY_STAGES[@]}"; do
+    [[ $stage == "$wanted" ]] && return 0
+  done
+  return 1
+}
+
+infinity_validate_apply_selection() {
+  local unsupported=() stage
+  for stage in "$@"; do
+    infinity_has_apply_stage "$stage" || unsupported+=("$stage")
+  done
+  if ((${#unsupported[@]})); then
+    infinity_die "selected stages are plan-only: ${unsupported[*]}; use --plan or select only preflight,themes,deploy,validate"
+  fi
 }
 
 infinity_log() {
@@ -126,6 +148,10 @@ infinity_installer_main() {
 
   if ((${#selected[@]} == 0)); then
     selected=("${INFINITY_STAGES[@]}")
+  fi
+
+  if [[ $INFINITY_DRY_RUN == 0 ]]; then
+    infinity_validate_apply_selection "${selected[@]}"
   fi
 
   [[ -d $INFINITY_TARGET_ROOT ]] || infinity_die "target root '$INFINITY_TARGET_ROOT' does not exist"

@@ -4,6 +4,10 @@
 
 `preflight,repositories,base,hardware,wayland,desktop-shell,applications,services,boot,greeter,themes,deploy,validate`
 
+Apply-capable stages:
+
+`preflight,themes,deploy,validate`
+
 Plan mode:
 
 ```sh
@@ -13,8 +17,10 @@ Plan mode:
 Apply mode requires `--confirm` and should be run only on a target VM/system:
 
 ```sh
-sudo ./install.sh --target-root / --target-user sam --confirm
+./install.sh --confirm --target-root /mnt/infinity-root --target-user sam --stage preflight --stage themes --stage deploy --stage validate
 ```
+
+If `--confirm` includes any plan-only stage, the installer exits before creating its log directory or writing files and names the unsupported stages in the error. Use `--plan` for the full stage list.
 
 No stage partitions disks. Hardware and graphics stages report decisions and package groups; they do not assume NVIDIA/AMD/Intel globally.
 

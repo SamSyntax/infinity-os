@@ -1,6 +1,6 @@
 # Infinity OS
 
-Infinity OS is a repository-driven Arch workstation foundation. It is not an ISO. The current milestone installs and validates a cohesive Hyprland + Quickshell desktop foundation.
+Infinity OS is a repository-driven Arch workstation foundation. It is not an ISO. The current milestone defines and validates a cohesive Hyprland + Quickshell desktop foundation; it does not yet install the complete workstation.
 
 ## Safe VM workflow
 
@@ -26,11 +26,11 @@ Use a virtual machine or sacrificial Arch installation. The current installer do
    These commands only read theme data or print planned user-home writes. `Signal Archive` is the original warm-monochrome, halftone/distortion edition.
 5. Apply only inside the VM after reviewing the plan:
    ```sh
-   sudo ./install.sh --target-root / --target-user youruser --confirm
+   ./install.sh --confirm --target-root /mnt/infinity-root --target-user youruser --stage preflight --stage themes --stage deploy --stage validate
    ```
-   Root is required because deployment writes greetd configuration under `/etc` and shared greeter artwork under `/usr/share`. Existing mapped user configuration is copied to `~/.local/share/infinity-os/backups/` before replacement. The deployment record is `~/.local/share/infinity-os/deployment-manifest.json`.
+   This only applies the supported stages. The default `--confirm` run fails fast because the full stage list still includes plan-only stages such as base, hardware, wayland, desktop-shell, applications, services, boot, and greeter. Use a writable mounted target root; existing mapped user configuration is copied to `~/.local/share/infinity-os/backups/` before replacement. The deployment record is `~/.local/share/infinity-os/deployment-manifest.json`.
 
-The installer never partitions disks. Plan mode is the safe development default. Apply mode currently deploys configuration and the selected theme; package, hardware, service enablement, and boot rendering stages are still explicit plan-only foundations.
+The installer never partitions disks. Plan mode is the safe development default. Apply mode currently works only for `preflight`, `themes`, `deploy`, and `validate`; the other stages are plan-only and make `--confirm` fail before any writes.
 
 ## How the pieces connect
 
@@ -46,6 +46,7 @@ The installer never partitions disks. Plan mode is the safe development default.
 ```sh
 ./install.sh --help
 ./install.sh --plan --target-root /tmp --target-user testuser
+./install.sh --confirm --target-root /tmp/infinity-root --target-user testuser --stage preflight --stage themes --stage deploy --stage validate
 ./bin/infinity-validate
 ./bin/infinity-theme list
 ./bin/infinity-theme preview aurora
