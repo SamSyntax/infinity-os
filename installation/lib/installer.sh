@@ -77,13 +77,7 @@ infinity_validate_apply_selection() {
 
 infinity_log_append() {
   [[ $INFINITY_DRY_RUN == 1 ]] && return 0
-  # PYTHONPATH="$INFINITY_REPO/installation/lib" "$INFINITY_PYTHON" - "$INFINITY_TARGET_ROOT" "$INFINITY_LOG_RELATIVE" "$1" <<'PY'
-  local runner=()
-  if [[ ! -w "$INFINITY_TARGET_ROOT/var/log" && ${EUID:-$(id -u)} -ne 0 ]]; then
-    runner=(sudo)
-  fi
-  "${runner[@]}" PYTHONPATH="$INFINITY_REPO/installation/lib" "$INFINITY_PYTHON" - "$INFINITY_TARGET_ROOT" "$INFINITY_LOG_RELATIVE" "$1" <<'PY'
-
+  PYTHONPATH="$INFINITY_REPO/installation/lib" "$INFINITY_PYTHON" - "$INFINITY_TARGET_ROOT" "$INFINITY_LOG_RELATIVE" "$1" <<'PY'
 import sys
 from safe_fs import append_regular, resolve_root, validate_relative
 root = resolve_root(sys.argv[1])
@@ -364,6 +358,7 @@ infinity_run_stage() {
       infinity_log_command "$INFINITY_REPO/bin/infinity-deploy" --scope user --target-root "$INFINITY_TARGET_ROOT" --target-user "$INFINITY_TARGET_USER"
       infinity_log "preview: applying Signal Archive theme"
       infinity_log_command "$INFINITY_REPO/bin/infinity-theme" apply signal-archive --target-root "$INFINITY_TARGET_ROOT" --target-user "$INFINITY_TARGET_USER"
+      chown -R "$INFINITY_TARGET_USER:$INFINITY_TARGET_USER" "$INFINITY_TARGET_ROOT/home/$INFINITY_TARGET_USER/.config" "$INFINITY_TARGET_ROOT/home/$INFINITY_TARGET_USER/.local" 2>/dev/null || true
       infinity_log "preview: if deploy/theme fails after packages install, rerun the same preview command after fixing the reported error; pacman packages may remain installed"
       infinity_preview_success
       ;;
@@ -374,7 +369,7 @@ infinity_run_stage() {
 infinity_installer_main() {
   INFINITY_REPO=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
   INFINITY_TARGET_ROOT=/
-  INFINITY_TARGET_USER=${USER:-${id -un}}
+  INFINITY_TARGET_USER=${SUDO_USER:-${USER:-}}
   INFINITY_DRY_RUN=1
   local confirmed=0
   local selected=()
