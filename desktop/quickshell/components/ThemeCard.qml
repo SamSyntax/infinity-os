@@ -10,6 +10,7 @@ Item {
     property color textColor: "#edf1f5"
     property color accentColor: "#7ea6c9"
     property bool selected: false
+    property bool active: false
     signal chosen
     width: 260
     height: 184
@@ -54,7 +55,7 @@ Item {
         }
         Text {
             anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 15
-            text: root.mode.toUpperCase()
+            text: root.active ? "ACTIVE" : root.mode.toUpperCase()
             color: root.accentColor
             font.family: Services.Theme.monoFamily
             font.pixelSize: 8

@@ -1,0 +1,15 @@
+#!/usr/bin/bash
+set -Eeuo pipefail
+
+visual_pid=
+cleanup() {
+  if [[ -n $visual_pid ]]; then
+    kill "$visual_pid" 2>/dev/null || true
+    wait "$visual_pid" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT INT TERM
+
+quickshell --path /usr/share/infinity-os/greeter/shell.qml --no-duplicate &
+visual_pid=$!
+regreet --style /etc/greetd/regreet.css

@@ -6,6 +6,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 INSTALLER = REPO / "install.sh"
+INSTALLER_LIB = REPO / "installation/lib/installer.sh"
 
 
 def run(*arguments, env=None):
@@ -16,6 +17,16 @@ def run(*arguments, env=None):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=os.environ | (env or {}),
+    )
+
+
+def run_installer_function(script, *arguments):
+    return subprocess.run(
+        ["/usr/bin/bash", "-c", f'source "$1"; {script}', "bash", str(INSTALLER_LIB), *arguments],
+        cwd=REPO,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
 
 
@@ -110,7 +121,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="infinity-installer-packages-plan-") as tmp:
         plan = run("--plan", "--target-root", tmp, "--target-user", "tester", "--stage", "packages")
         require(plan.returncode == 0, plan.stdout + plan.stderr)
-        for expected in ["validation", "microcode", "graphics and AUR", "/usr/bin/pacman -Syu --needed --noconfirm --"]:
+        for expected in ["validated", "microcode", "graphics and AUR", "/usr/bin/pacman -Syu --needed --noconfirm --"]:
             require(expected in plan.stdout, f"packages plan omitted {expected!r}")
         assert_empty_directory(tmp, "packages plan wrote into the target root")
 
@@ -119,6 +130,25 @@ def main():
         require(confirm.returncode != 0, confirm.stdout + confirm.stderr)
         require("packages apply only supports --target-root /" in confirm.stderr, "packages confirm did not reject non-live target root")
         assert_empty_directory(tmp, "rejected packages confirm wrote into the target root")
+
+    with tempfile.TemporaryDirectory(prefix="infinity-installer-preview-manifest-") as tmp:
+        manifest = Path(tmp) / "preview.txt"
+        manifest.write_text("git\n--dbonly\n", encoding="utf-8")
+        preview_argv = run_installer_function('infinity_preview_pacman_argv "$2"', str(manifest))
+        require(preview_argv.returncode != 0, "partially invalid preview manifest was accepted")
+        require(not preview_argv.stdout, "partially invalid preview manifest emitted a partial pacman argv")
+        require("invalid preview package token" in preview_argv.stderr, "preview manifest parser error was not preserved")
+
+    packages_validation = run_installer_function(
+        "INFINITY_PACKAGES_ARGV=(/usr/bin/pacman -Syu --needed --noconfirm -- git hyprland); infinity_prewrite_packages_validation"
+    )
+    require(packages_validation.returncode == 0, packages_validation.stdout + packages_validation.stderr)
+
+    unsafe_packages_validation = run_installer_function(
+        "INFINITY_PACKAGES_ARGV=(/usr/bin/pacman -Syu --needed --noconfirm -- git --dbonly); infinity_prewrite_packages_validation"
+    )
+    require(unsafe_packages_validation.returncode != 0, "unsafe cached package argv was accepted")
+    require("invalid package token" in unsafe_packages_validation.stderr, "unsafe cached package argv error was unclear")
 
     print("ok: installer help, plan, confirm rejection, and no-write behavior")
 

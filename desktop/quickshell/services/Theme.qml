@@ -7,30 +7,105 @@ import QtQuick
 Singleton {
     id: root
 
-    readonly property color background: adapter.palette.background
-    readonly property color surface: adapter.palette.surface
-    readonly property color surfaceAlt: adapter.palette.surfaceAlt
-    readonly property color text: adapter.palette.text
-    readonly property color muted: adapter.palette.muted
-    readonly property color accent: adapter.palette.accent
-    readonly property color border: adapter.palette.border
-    readonly property color success: adapter.palette.success
-    readonly property color warning: adapter.palette.warning
-    readonly property color error: adapter.palette.error
+    property var catalog: []
+    property var previewTheme: null
+    property bool applying: false
+    property string applyError: ""
+    property string pendingThemeId: ""
+    readonly property string commandPath: Quickshell.env("INFINITY_THEME_COMMAND") || Quickshell.env("HOME") + "/.local/share/infinity-os/runtime/bin/infinity-theme"
+    readonly property var activePalette: previewTheme === null ? adapter.palette : previewTheme.palette
+    readonly property string currentThemeId: adapter.themeId
+    readonly property string previewThemeId: previewTheme === null ? "" : previewTheme.id
+    readonly property color background: activePalette.background
+    readonly property color surface: activePalette.surface
+    readonly property color surfaceAlt: activePalette.surfaceAlt
+    readonly property color text: activePalette.text
+    readonly property color muted: activePalette.muted
+    readonly property color accent: activePalette.accent
+    readonly property color border: activePalette.border
+    readonly property color success: activePalette.success
+    readonly property color warning: activePalette.warning
+    readonly property color error: activePalette.error
     readonly property int radius: adapter.radius
-    readonly property int duration: ShellState.reducedMotion ? 0 : adapter.durationMs
+    readonly property int duration: ShellState.reducedMotion ? 0 : Math.round(adapter.durationMs * ShellState.motionScale)
     readonly property real panelOpacity: adapter.opacity
     readonly property string fontFamily: "IBM Plex Sans"
     readonly property string displayFamily: "IBM Plex Serif"
     readonly property string monoFamily: "IBM Plex Mono"
 
+    signal applySucceeded(string themeId)
+
+    function preview(theme) {
+        previewTheme = theme;
+        applyError = "";
+    }
+
+    function clearPreview() {
+        previewTheme = null;
+    }
+
+    function apply(themeId) {
+        if (applying || themeId.length === 0)
+            return;
+        pendingThemeId = themeId;
+        applyError = "";
+        applying = true;
+        applyProcess.command = [commandPath, "apply", themeId, "--target-user", Quickshell.env("USER")];
+        applyProcess.running = true;
+    }
+
+    Process {
+        id: catalogProcess
+        command: [root.commandPath, "list", "--json"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root.catalog = JSON.parse(text);
+                } catch (error) {
+                    root.applyError = "Theme catalog is invalid: " + error;
+                }
+            }
+        }
+        stderr: StdioCollector {
+            id: catalogError
+        }
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0)
+                root.applyError = catalogError.text.trim() || "Unable to load theme catalog";
+        }
+    }
+
+    Process {
+        id: applyProcess
+        stdout: StdioCollector {
+            id: applyOutput
+        }
+        stderr: StdioCollector {
+            id: applyFailure
+        }
+        onExited: (exitCode, exitStatus) => {
+            root.applying = false;
+            if (exitCode === 0) {
+                root.previewTheme = null;
+                root.applySucceeded(root.pendingThemeId);
+            } else {
+                root.applyError = applyFailure.text.trim() || applyOutput.text.trim() || "Theme apply failed";
+            }
+        }
+    }
+
     FileView {
         path: Quickshell.env("HOME") + "/.config/quickshell/generated/theme.json"
+        printErrors: false
         watchChanges: true
         onFileChanged: reload()
 
         JsonAdapter {
             id: adapter
+            property string themeId: "nocturne"
+            property string name: "Nocturne Index"
+            property string mode: "dark"
             property int radius: 14
             property real opacity: 0.9
             property int durationMs: 180

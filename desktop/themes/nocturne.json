@@ -1,6 +1,6 @@
 {
   "id": "nocturne",
-  "name": "Nocturne Index",
+  "name": "Cold Carrier",
   "mode": "dark",
   "license": "CC0-1.0 original repository-authored theme",
   "palette": {
@@ -28,5 +28,5 @@
   "lock": { "background": "#070914", "text": "#eef4ff" },
   "greeter": { "background": "#070914", "text": "#eef4ff" },
   "plymouth": { "top": "#05080f", "bottom": "#141724", "text": "#eef4ff" },
-  "wallpaper": { "path": "desktop/wallpapers/nocturne.svg", "license": "CC0-1.0", "author": "Infinity OS contributors", "title": "Nocturne Index" }
+  "wallpaper": { "path": "desktop/wallpapers/nocturne.svg", "license": "CC0-1.0", "author": "Infinity OS contributors", "title": "Cold Carrier" }
 }

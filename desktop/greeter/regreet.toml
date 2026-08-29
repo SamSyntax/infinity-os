@@ -7,6 +7,10 @@ application_prefer_dark_theme = true
 theme_name = "Adwaita"
 icon_theme_name = "Papirus-Dark"
 cursor_theme_name = "Bibata-Modern-Ice"
+font_name = "IBM Plex Sans 12"
+
+[appearance]
+greeting_msg = "Return to the field"
 
 [commands]
 reboot = ["systemctl", "reboot"]

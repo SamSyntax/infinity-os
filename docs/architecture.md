@@ -12,7 +12,7 @@ Infinity OS uses this repository as source of truth and deploys into a target Ar
 
 - First milestone is a setup repository, not an ISO.
 - Boot path is systemd-boot + mkinitcpio + Plymouth templates with recovery guidance.
-- Greeter path is greetd + ReGreet with tuigreet recovery.
+- Greeter path is greetd + Cage + a non-interactive Quickshell visual layer + ReGreet authentication, with tuigreet recovery.
 - Lock path is hypridle + real hyprlock; Quickshell must not fake locking.
 - Portal path is xdg-desktop-portal + xdg-desktop-portal-hyprland + GTK fallback.
 - Theme application generates target files, snapshots prior regular files, performs symlink-safe atomic replacements, and restores the full snapshot if any replacement fails.

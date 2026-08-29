@@ -3,8 +3,17 @@ desktop/hypr/hyprland.lua	.config/hypr/hyprland.lua	0644	yes
 desktop/hypr/helpers.lua	.config/hypr/helpers.lua	0644	yes
 desktop/hypr/modules	.config/hypr/modules	0644	yes
 desktop/quickshell	.config/quickshell	0644	yes
+user/shell.json	.config/infinity-os/shell.json	0644	yes
+bin/infinity-theme	.local/share/infinity-os/runtime/bin/infinity-theme	0755	no
+installation/lib/safe_fs.py	.local/share/infinity-os/runtime/installation/lib/safe_fs.py	0644	no
+desktop/themes	.local/share/infinity-os/runtime/desktop/themes	0644	no
+desktop/wallpapers	.local/share/infinity-os/runtime/desktop/wallpapers	0644	no
 desktop/lockscreen/hyprlock.conf	.config/hypr/hyprlock.conf	0644	yes
+desktop/lockscreen/generated-lock.conf	.config/hypr/generated-lock.conf	0644	yes
 system/power/hypridle.conf	.config/hypr/hypridle.conf	0644	yes
 desktop/greeter/regreet.toml	etc/greetd/regreet.toml	0644	no
+desktop/greeter/regreet.css	etc/greetd/regreet.css	0644	no
+desktop/greeter/start-greeter	usr/share/infinity-os/greeter/start-greeter	0755	no
+desktop/greeter/shell.qml	usr/share/infinity-os/greeter/shell.qml	0644	no
 system/services/greetd.toml	etc/greetd/config.toml	0644	no
 desktop/wallpapers/nocturne.svg	usr/share/infinity-os/wallpapers/nocturne.svg	0644	no

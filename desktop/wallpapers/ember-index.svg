@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Original oxidized ember dither archive wallpaper">
+  <defs>
+    <pattern id="ash" width="19" height="23" patternUnits="userSpaceOnUse"><circle cx="3" cy="5" r=".8" fill="#e2cdb8" opacity=".2"/><circle cx="14" cy="16" r=".55" fill="#c36e4d" opacity=".32"/><path d="M8 2v2" stroke="#e2cdb8" opacity=".14"/></pattern>
+    <pattern id="embers" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.45" fill="#e2cdb8"/><circle cx="7" cy="6" r=".8" fill="#c36e4d"/></pattern>
+    <clipPath id="monolith"><path d="M1110 72l302 106-70 159 132 116-102 112 72 221-350 34-114-199 101-146-119-154 80-118z"/></clipPath>
+  </defs>
+  <rect width="1600" height="900" fill="#120d0b"/><rect width="1600" height="900" fill="url(#ash)" opacity=".58"/>
+  <g fill="none" stroke="#432b23"><path d="M70 68h720M70 780h720"/><path d="M866 65v765"/><circle cx="1214" cy="442" r="326"/><circle cx="1214" cy="442" r="272" stroke-dasharray="2 15"/></g>
+  <g fill="#ead8c4"><text x="72" y="111" font-family="IBM Plex Mono" font-size="13" letter-spacing="5">INFINITY / EMBER INDEX</text><text x="72" y="200" font-family="IBM Plex Serif" font-size="84">Oxide Memory</text></g>
+  <text x="76" y="237" fill="#9c7460" font-family="IBM Plex Mono" font-size="12" letter-spacing="3">EDITION 04 · THERMAL RESIDUE STUDY</text>
+  <g transform="translate(72 330)" font-family="IBM Plex Mono" font-size="12"><g fill="#9c7460"><text>CORE</text><text y="44">HEAT</text><text y="88">OXIDE</text><text y="132">DECAY</text></g><g fill="#ead8c4" text-anchor="end"><text x="670">E-09</text><text x="670" y="44">642 K</text><text x="670" y="88">FERROUS</text><text x="670" y="132">0.031 / H</text></g><g stroke="#432b23"><path d="M0 15h670M0 59h670M0 103h670M0 147h670"/></g></g>
+  <g clip-path="url(#monolith)"><rect x="925" y="55" width="600" height="790" fill="url(#embers)"/><path d="M980 124l468 260-480 122 494 256" fill="none" stroke="#120d0b" stroke-width="54" opacity=".72"/><rect x="906" y="291" width="630" height="31" fill="#120d0b" opacity=".88"/><rect x="930" y="595" width="590" height="17" fill="#120d0b" opacity=".93"/></g>
+  <g stroke="#c36e4d" fill="none"><path d="M932 306h566" stroke-dasharray="72 6 18 25"/><path d="M954 606h520" stroke-dasharray="9 4 132 19"/></g>
+  <g fill="#e2cdb8" font-family="IBM Plex Mono" font-size="10" letter-spacing="3"><text x="72" y="822">PLATE E09 / BURN 0642</text><text x="1308" y="91">ASH 71%</text></g>
+</svg>

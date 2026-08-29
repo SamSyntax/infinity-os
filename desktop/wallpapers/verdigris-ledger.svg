@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Original mineral green dither ledger wallpaper">
+  <defs>
+    <pattern id="mineral" width="21" height="17" patternUnits="userSpaceOnUse"><circle cx="4" cy="3" r=".7" fill="#b7c7b9" opacity=".2"/><circle cx="16" cy="12" r=".5" fill="#6f9a84" opacity=".34"/><rect x="9" y="15" width="1" height="1" fill="#c39568" opacity=".28"/></pattern>
+    <pattern id="ledgerDots" width="8" height="8" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.2" fill="#b7c7b9"/><circle cx="6" cy="6" r=".6" fill="#6f9a84"/></pattern>
+    <clipPath id="sample"><path d="M1050 80c168-34 343 60 380 216 24 102-33 166-78 211 84 52 118 139 83 239-94 74-258 90-372 17-98-63-114-165-56-244-88-74-102-174-55-269 24-49 52-140 98-170z"/></clipPath>
+  </defs>
+  <rect width="1600" height="900" fill="#07110e"/><rect width="1600" height="900" fill="url(#mineral)" opacity=".64"/>
+  <g fill="none" stroke="#254038"><path d="M70 70h712M70 780h712"/><path d="M856 66v764"/><circle cx="1195" cy="430" r="330"/><path d="M905 142h578M905 712h578" stroke-dasharray="2 12"/></g>
+  <g fill="#dce5db"><text x="72" y="112" font-family="IBM Plex Mono" font-size="13" letter-spacing="5">INFINITY / VERDIGRIS LEDGER</text><text x="72" y="199" font-family="IBM Plex Serif" font-size="82">Mineral Proof</text></g>
+  <text x="76" y="236" fill="#779284" font-family="IBM Plex Mono" font-size="12" letter-spacing="3">EDITION 05 · CULTURED SURFACE SAMPLE</text>
+  <g transform="translate(72 330)" font-family="IBM Plex Mono" font-size="12"><g fill="#779284"><text>SAMPLE</text><text y="44">GROWTH</text><text y="88">COPPER</text><text y="132">MOISTURE</text></g><g fill="#dce5db" text-anchor="end"><text x="666">V-23</text><text x="666" y="44">STABLE</text><text x="666" y="88">18.4%</text><text x="666" y="132">42 RH</text></g><g stroke="#254038"><path d="M0 15h666M0 59h666M0 103h666M0 147h666"/></g></g>
+  <g clip-path="url(#sample)"><rect x="910" y="55" width="600" height="790" fill="url(#ledgerDots)"/><path d="M966 128c180 142 325 112 470 260-170 82-301 116-454 226 165 46 294 86 458 188" fill="none" stroke="#07110e" stroke-width="56" opacity=".7"/><rect x="908" y="352" width="620" height="22" fill="#07110e" opacity=".9"/><rect x="930" y="575" width="574" height="14" fill="#07110e" opacity=".94"/></g>
+  <g fill="none" stroke="#c39568"><path d="M934 364h546" stroke-dasharray="88 8 11 21"/><path d="M960 586h492" stroke-dasharray="7 5 116 19"/></g>
+  <g fill="#b7c7b9" font-family="IBM Plex Mono" font-size="10" letter-spacing="3"><text x="72" y="820">LEDGER V23 / CULTURE 042</text><text x="1302" y="91">PATINA 58%</text></g>
+</svg>

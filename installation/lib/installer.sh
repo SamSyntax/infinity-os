@@ -147,8 +147,9 @@ infinity_install_preview_packages() {
 }
 
 infinity_preview_pacman_argv() {
-  local packages=()
-  mapfile -t packages < <(infinity_preview_packages "$@")
+  local output packages=()
+  output=$(infinity_preview_packages "$@") || return
+  mapfile -t packages <<<"$output"
   ((${#packages[@]})) || infinity_die "preview package manifest is empty"
   printf '%s\n' /usr/bin/pacman -Syu --needed --noconfirm -- "${packages[@]}"
 }
@@ -238,6 +239,19 @@ infinity_prewrite_repository_validation() {
   "$INFINITY_REPO/bin/infinity-validate"
 }
 
+infinity_prewrite_packages_validation() {
+  local package
+  ((${#INFINITY_PACKAGES_ARGV[@]} >= 7)) || infinity_die "packages pacman command is incomplete"
+  [[ ${INFINITY_PACKAGES_ARGV[0]} == /usr/bin/pacman ]] || infinity_die "packages pacman command must use /usr/bin/pacman"
+  [[ ${INFINITY_PACKAGES_ARGV[1]} == -Syu ]] || infinity_die "packages pacman command must perform a full system upgrade"
+  [[ ${INFINITY_PACKAGES_ARGV[2]} == --needed ]] || infinity_die "packages pacman command must use --needed"
+  [[ ${INFINITY_PACKAGES_ARGV[3]} == --noconfirm ]] || infinity_die "packages pacman command must use --noconfirm"
+  [[ ${INFINITY_PACKAGES_ARGV[4]} == -- ]] || infinity_die "packages pacman options must end before package names"
+  for package in "${INFINITY_PACKAGES_ARGV[@]:5}"; do
+    [[ $package =~ ^[a-z0-9][a-z0-9@._+-]*$ ]] || infinity_die "invalid package token in packages pacman command: '$package'"
+  done
+}
+
 infinity_preview_success() {
   cat <<'PREVIEW'
 PREVIEW READY
@@ -277,7 +291,7 @@ infinity_run_stage() {
     packages)
       if [[ $INFINITY_DRY_RUN == 1 ]]; then
         infinity_compute_packages_argv
-        infinity_log "PLAN packages: repository validation runs before package writes and before log creation"
+        infinity_log "PLAN packages: package manifests and fixed pacman argv are validated before package writes and before log creation"
         infinity_log "PLAN packages: microcode ${INFINITY_PACKAGES_MICROCODE_PACKAGE} (${INFINITY_PACKAGES_MICROCODE_REASON})"
         infinity_log "PLAN packages: includes official groups base,hardware,wayland,desktop-shell,applications in that order"
         infinity_log "PLAN packages: graphics and AUR manifests are deferred; no services, boot, greeter, deploy, or theme actions"
@@ -392,8 +406,8 @@ infinity_installer_main() {
         needs_prewrite_validation=1
         infinity_compute_preview_argv
       elif [[ $stage == packages ]]; then
-        needs_prewrite_validation=1
         infinity_compute_packages_argv
+        infinity_prewrite_packages_validation
       fi
     done
     if [[ $needs_prewrite_validation == 1 ]]; then

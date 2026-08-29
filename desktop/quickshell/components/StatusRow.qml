@@ -7,6 +7,8 @@ RowLayout {
     property string label: "STATUS"
     property string value: "READY"
     property color valueColor: Services.Theme.text
+    property bool interactive: false
+    signal clicked
     spacing: 12
 
     Rectangle {
@@ -27,5 +29,9 @@ RowLayout {
         color: root.valueColor
         font.family: Services.Theme.monoFamily
         font.pixelSize: 10
+    }
+    TapHandler {
+        enabled: root.interactive
+        onTapped: root.clicked()
     }
 }

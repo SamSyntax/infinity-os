@@ -27,7 +27,7 @@ def run(name, cmd):
         fail(name, result.stdout.strip())
 
 def shell_syntax():
-    scripts = [REPO / "install.sh", *sorted((REPO / "bin").glob("infinity-*")), REPO / "installation/lib/installer.sh"]
+    scripts = [REPO / "install.sh", *sorted((REPO / "bin").glob("infinity-*")), REPO / "installation/lib/installer.sh", REPO / "desktop/greeter/start-greeter"]
     for script in scripts:
         if script.suffix == ".py":
             continue
@@ -200,8 +200,10 @@ def command_refs():
             item = line.split("#", 1)[0].strip()
             if item:
                 packages.add(item)
-    commands = {"ghostty", "uwsm", "nautilus", "lazydocker", "obsidian", "keepassxc", "xdg-open", "fuzzel", "cliphist", "wl-copy", "quickshell", "hyprctl", "hypridle", "systemctl", "dbus-update-activation-environment"}
-    provided = {"uwsm", "xdg-open", "systemctl", "dbus-update-activation-environment", "hyprctl", "wl-copy"}
+    commands = {"ghostty", "uwsm", "nautilus", "lazydocker", "obsidian", "keepassxc", "xdg-open", "fuzzel", "cliphist", "wl-copy", "quickshell", "hyprctl", "hypridle", "systemctl", "dbus-update-activation-environment", "loginctl", "systemd-run", "wpctl", "regreet", "cage"}
+    provided = {"uwsm", "xdg-open", "systemctl", "dbus-update-activation-environment", "hyprctl", "wl-copy", "loginctl", "systemd-run", "wpctl"}
+    if "greetd-regreet" in packages:
+        provided.add("regreet")
     missing = sorted((commands - packages - allowed) - provided)
     if missing:
         fail("command references", f"not covered by manifests or allowlist: {missing}")
@@ -212,13 +214,20 @@ def qml_hook():
     required = {
         "services/Theme.qml",
         "services/ShellState.qml",
+        "services/Wallpaper.qml",
+        "services/Workspaces.qml",
+        "services/SystemResources.qml",
+        "services/Network.qml",
+        "services/Power.qml",
         "components/ThemeCard.qml",
         "surfaces/WallpaperSurface.qml",
         "surfaces/RailSurface.qml",
         "surfaces/ControlSurface.qml",
         "surfaces/LauncherSurface.qml",
         "surfaces/OsdSurface.qml",
+        "surfaces/AppearanceSurface.qml",
         "surfaces/ThemeSurface.qml",
+        "surfaces/WallpaperPickerSurface.qml",
     }
     missing = sorted(path for path in required if not (REPO / "desktop/quickshell" / path).is_file())
     if missing:
@@ -231,7 +240,7 @@ def qml_hook():
     if not qmlformat:
         print("skip: QML static check, qmlformat not present")
         return
-    for path in sorted((REPO / "desktop/quickshell").rglob("*.qml")):
+    for path in sorted((REPO / "desktop").rglob("*.qml")):
         run(f"qml format check {path.relative_to(REPO)}", [qmlformat, "-n", str(path)])
 
 def hyprland_theme_bridge():
@@ -259,11 +268,12 @@ def installer_dry_run():
 
 def session_foundation():
     greetd = (REPO / "system/services/greetd.toml").read_text(encoding="utf-8")
+    greeter_launcher = (REPO / "desktop/greeter/start-greeter").read_text(encoding="utf-8")
     packages = (REPO / "system/packages/desktop-shell.official.txt").read_text(encoding="utf-8").splitlines()
     mappings = (REPO / "deployment/mappings.tsv").read_text(encoding="utf-8")
     if "initial_session" in greetd:
         fail("session foundation", "default greetd config must not enable an initial autologin session")
-    if 'command = "cage -s -- regreet"' not in greetd or "cage" not in packages:
+    if 'command = "cage -s -- /usr/share/infinity-os/greeter/start-greeter"' not in greetd or "regreet" not in greeter_launcher or "cage" not in packages:
         fail("session foundation", "ReGreet must run inside the packaged Cage compositor")
     if "usr/share/infinity-os/wallpapers/nocturne.svg" not in mappings:
         fail("session foundation", "greeter wallpaper is not deployed")

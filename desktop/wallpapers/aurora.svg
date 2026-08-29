@@ -1,7 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Original light abstract Infinity OS wallpaper">
-  <rect width="1600" height="900" fill="#f7f4ec"/>
-  <path d="M0 260 C320 120 580 360 860 210 C1110 75 1320 120 1600 40 L1600 0 L0 0 Z" fill="#ebe3d3"/>
-  <circle cx="430" cy="520" r="250" fill="#6b88d6" opacity="0.16"/>
-  <circle cx="560" cy="500" r="190" fill="#c06a91" opacity="0.12"/>
-  <path d="M720 710 C920 610 1070 660 1280 540" fill="none" stroke="#6b88d6" stroke-width="4" opacity="0.30"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Original warm paper dither archive wallpaper">
+  <defs>
+    <pattern id="paperGrain" width="19" height="17" patternUnits="userSpaceOnUse"><circle cx="2" cy="4" r=".7" fill="#28251f" opacity=".16"/><circle cx="14" cy="9" r=".5" fill="#a35f43" opacity=".22"/><path d="M6 15h2" stroke="#28251f" opacity=".12"/></pattern>
+    <pattern id="umberDots" width="9" height="9" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.35" fill="#28251f"/><circle cx="7" cy="7" r=".7" fill="#a35f43"/></pattern>
+    <clipPath id="fold"><path d="M1008 98L1438 164 1282 336 1491 474 1280 596 1444 780 968 813 1092 613 934 468 1102 311z"/></clipPath>
+  </defs>
+  <rect width="1600" height="900" fill="#eee7d8"/><rect width="1600" height="900" fill="url(#paperGrain)" opacity=".56"/>
+  <g fill="none" stroke="#cfc4af"><path d="M70 70h720M70 776h720"/><path d="M866 64v764"/><circle cx="1208" cy="438" r="330"/><circle cx="1208" cy="438" r="254" stroke-dasharray="2 12"/></g>
+  <g fill="#28251f"><text x="72" y="112" font-family="IBM Plex Mono" font-size="13" letter-spacing="5">INFINITY / AURORA REGISTER</text><text x="72" y="201" font-family="IBM Plex Serif" font-size="82">Paper Frequency</text></g>
+  <text x="76" y="238" fill="#8a745f" font-family="IBM Plex Mono" font-size="12" letter-spacing="3">EDITION 02 · WARM-SPECTRUM IMPRESSION</text>
+  <g transform="translate(72 330)" font-family="IBM Plex Mono" font-size="12"><g fill="#8a745f"><text>STOCK</text><text y="44">DENSITY</text><text y="88">OFFSET</text><text y="132">REGISTER</text></g><g fill="#28251f" text-anchor="end"><text x="676">UNCOATED / IVORY</text><text x="676" y="44">72 LPI</text><text x="676" y="88">+04 / -11</text><text x="676" y="132">OPEN</text></g><g stroke="#cfc4af"><path d="M0 15h676M0 59h676M0 103h676M0 147h676"/></g></g>
+  <g clip-path="url(#fold)"><rect x="910" y="70" width="620" height="770" fill="url(#umberDots)"/><path d="M928 212l540 110M932 420l558 84M958 650l510-92" stroke="#eee7d8" stroke-width="38" opacity=".45"/><rect x="906" y="377" width="640" height="25" fill="#eee7d8" opacity=".88"/><rect x="934" y="620" width="590" height="13" fill="#eee7d8" opacity=".94"/></g>
+  <g fill="none" stroke="#a35f43"><path d="M955 391h552" stroke-dasharray="63 8 12 19"/><path d="M981 632h484" stroke-dasharray="8 5 89 16"/></g>
+  <g fill="#28251f" font-family="IBM Plex Mono" font-size="10" letter-spacing="3"><text x="72" y="819">SHEET 04 / IMPRESSION 17</text><text x="1290" y="92">GRAIN 64%</text></g>
 </svg>

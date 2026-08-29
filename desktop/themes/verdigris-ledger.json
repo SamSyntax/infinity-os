@@ -1,0 +1,32 @@
+{
+  "id": "verdigris-ledger",
+  "name": "Mineral Proof",
+  "mode": "dark",
+  "license": "CC0-1.0 original repository-authored theme",
+  "palette": {
+    "background": "#07110e",
+    "surface": "#101d18",
+    "surfaceAlt": "#1a3028",
+    "text": "#dce5db",
+    "muted": "#779284",
+    "accent": "#6f9a84",
+    "accentAlt": "#c39568",
+    "border": "#254038",
+    "warning": "#c39568",
+    "error": "#b96868",
+    "success": "#84ad8d"
+  },
+  "fonts": { "ui": "IBM Plex Sans", "display": "IBM Plex Serif", "mono": "IBM Plex Mono", "size": 11 },
+  "icons": { "iconTheme": "Papirus-Dark", "cursorTheme": "Bibata-Modern-Ice" },
+  "gtk": { "theme": "Adwaita-dark", "preferDark": true },
+  "qt": { "style": "kvantum", "colorScheme": "dark" },
+  "terminal": { "background": "#07110e", "foreground": "#dce5db", "accent": "#6f9a84" },
+  "tmux": { "statusBg": "#101d18", "statusFg": "#dce5db", "accent": "#6f9a84" },
+  "neovim": { "flavor": "dark", "accent": "#6f9a84" },
+  "hyprland": { "activeBorder": ["#6f9a84", "#c39568"], "inactiveBorder": "#254038", "rounding": 6, "blur": true },
+  "quickshell": { "radius": 7, "opacity": 0.90, "easing": "cubic-bezier(0.16, 1, 0.3, 1)", "durationMs": 200 },
+  "lock": { "background": "#07110e", "text": "#dce5db" },
+  "greeter": { "background": "#07110e", "text": "#dce5db" },
+  "plymouth": { "top": "#07110e", "bottom": "#101d18", "text": "#dce5db" },
+  "wallpaper": { "path": "desktop/wallpapers/verdigris-ledger.svg", "license": "CC0-1.0", "author": "Infinity OS contributors", "title": "Mineral Proof" }
+}

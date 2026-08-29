@@ -21,6 +21,7 @@ Use a virtual machine or sacrificial Arch installation. The current installer do
    ```sh
    ./bin/infinity-theme list
    ./bin/infinity-theme preview signal-archive
+   ./bin/infinity-theme preview verdigris-ledger
    ./bin/infinity-theme apply signal-archive --dry-run --target-user "$USER"
    ```
    These commands only read theme data or print planned user-home writes. `Signal Archive` is the original warm-monochrome, halftone/distortion edition.
@@ -28,7 +29,7 @@ Use a virtual machine or sacrificial Arch installation. The current installer do
    ```sh
    ./install.sh --plan --stage packages
    ```
-   This writes nothing. It validates that package selection would happen before any target write, prints the detected CPU microcode decision, states that graphics drivers and AUR packages are deferred, and prints the exact `/usr/bin/pacman -Syu --needed --noconfirm -- ...` argv.
+   This writes nothing. It validates that package selection would happen before any target write, prints the detected CPU microcode decision, states that graphics drivers and AUR packages are deferred, and prints the exact `/usr/bin/pacman -Syu --needed --noconfirm -- ...` argv. Run the full `./bin/infinity-validate` command as your normal user before the later `sudo` command; the privileged package stage deliberately validates only its manifests and fixed pacman argv instead of executing repository tests as root.
 6. Apply the broader official package groups only on the live root of the Arch VM/system:
    ```sh
    sudo ./install.sh --confirm --stage packages
@@ -80,10 +81,10 @@ sudo ./install.sh --confirm --stage packages
 
 ## Current status
 
-- Implemented and repository-tested: staged plan/apply CLI, standalone live-root-only official package stage, live-root-only preview stage, grouped package manifests, symlink-safe deployment/logging with backups and a manifest, modular Hyprland Lua, theme schema/rollback CLI, three original themes and wallpapers, and one validation command.
-- Implemented and runtime-loaded on the development host: modular Quickshell wallpaper, rail, expandable system-state surface, launcher shell, OSD, shared theme service, and animated theme previews.
-- Template-only, not applied or VM-tested yet: systemd-boot/Plymouth rendering, graphics-driver selection, service enablement, greetd/ReGreet login, and the hypridle/hyprlock lifecycle.
-- Mocked/placeholder backends: launcher indexing/activation, live network/Bluetooth/power values, OSD system events, and theme-preview commit wiring.
+- Implemented and repository-tested: staged plan/apply CLI, standalone live-root-only official package stage, live-root-only preview stage, grouped package manifests, symlink-safe deployment/logging with backups and a manifest, modular Hyprland Lua, theme schema/rollback CLI, six original archive-style themes and wallpapers, and one validation command.
+- Implemented and repository-tested: exclusive outside-dismissable Quickshell panels, executable launcher entries, volume and lock actions, atomic theme and wallpaper UI flows, persistent reduced-motion settings, animated wallpaper crossfades, themed hyprlock animations, and a non-interactive animated greeter layer behind ReGreet.
+- Template-only, not applied or VM-tested yet: systemd-boot/Plymouth rendering, graphics-driver selection, service enablement, greetd/ReGreet authentication, and the full hypridle/hyprlock lifecycle.
+- Mocked/placeholder backends: live network/Bluetooth/power/media values and unsolicited OSD system events. Launcher indexing is curated rather than desktop-file driven.
 - Runtime services are not claimed tested on this host.
 
 ## Learn the implementation

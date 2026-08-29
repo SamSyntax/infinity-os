@@ -1,7 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Original dark abstract Infinity OS wallpaper">
-  <rect width="1600" height="900" fill="#070914"/>
-  <path d="M0 680 C360 520 520 810 900 620 C1160 490 1340 460 1600 540 L1600 900 L0 900 Z" fill="#101522"/>
-  <circle cx="1130" cy="270" r="190" fill="#7ea6c9" opacity="0.18"/>
-  <circle cx="1240" cy="330" r="260" fill="#6f879c" opacity="0.12"/>
-  <path d="M260 220 C520 130 730 160 980 80" fill="none" stroke="#7ea6c9" stroke-width="3" opacity="0.35"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Original nocturne dither relay wallpaper">
+  <defs>
+    <pattern id="nightGrain" width="23" height="21" patternUnits="userSpaceOnUse"><circle cx="4" cy="3" r=".65" fill="#aebdcc" opacity=".18"/><circle cx="17" cy="12" r=".45" fill="#6584a3" opacity=".28"/><rect x="9" y="18" width="2" height="1" fill="#aebdcc" opacity=".16"/></pattern>
+    <pattern id="relayDots" width="8" height="8" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.15" fill="#aebdcc"/><circle cx="6" cy="6" r=".55" fill="#6584a3"/></pattern>
+    <clipPath id="relay"><path d="M1036 82L1398 132 1500 319 1360 450 1485 606 1342 802 1041 765 927 590 1047 438 946 267z"/></clipPath>
+  </defs>
+  <rect width="1600" height="900" fill="#070a10"/><rect width="1600" height="900" fill="url(#nightGrain)" opacity=".62"/>
+  <g fill="none" stroke="#263447"><path d="M72 70h704M72 778h704"/><path d="M856 66v760"/><path d="M916 120l600 650M1510 128L930 778" opacity=".45"/><circle cx="1214" cy="438" r="320" stroke-dasharray="1 13"/></g>
+  <g fill="#e0e7ef"><text x="72" y="112" font-family="IBM Plex Mono" font-size="13" letter-spacing="5">INFINITY / NOCTURNE RELAY</text><text x="72" y="199" font-family="IBM Plex Serif" font-size="84">Cold Carrier</text></g>
+  <text x="76" y="236" fill="#74869a" font-family="IBM Plex Mono" font-size="12" letter-spacing="3">EDITION 03 · LOW-LIGHT PACKET FIELD</text>
+  <g transform="translate(72 330)" font-family="IBM Plex Mono" font-size="12"><g fill="#74869a"><text>CHANNEL</text><text y="44">PHASE</text><text y="88">LATENCY</text><text y="132">CARRIER</text></g><g fill="#e0e7ef" text-anchor="end"><text x="664">N-17</text><text x="664" y="44">LOCKED</text><text x="664" y="88">08.42 MS</text><text x="664" y="132">118.7 KHZ</text></g><g stroke="#263447"><path d="M0 15h664M0 59h664M0 103h664M0 147h664"/></g></g>
+  <g clip-path="url(#relay)"><rect x="905" y="60" width="620" height="780" fill="url(#relayDots)"/><path d="M908 187l600 248-574 164 530 183" fill="none" stroke="#070a10" stroke-width="48" opacity=".76"/><rect x="892" y="331" width="650" height="23" fill="#070a10" opacity=".9"/><rect x="920" y="546" width="622" height="13" fill="#070a10" opacity=".95"/></g>
+  <g fill="none" stroke="#6584a3"><path d="M930 343h570" stroke-dasharray="91 9 7 23"/><path d="M958 555h516" stroke-dasharray="12 5 108 17"/></g>
+  <g fill="#aebdcc" font-family="IBM Plex Mono" font-size="10" letter-spacing="3"><text x="72" y="819">NODE 17 / TRACE 082</text><text x="1322" y="91">NOISE 37%</text></g>
 </svg>

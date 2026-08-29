@@ -1,6 +1,7 @@
 import Quickshell
 import QtQuick
 import "surfaces"
+import "services" as Services
 
 ShellRoot {
     Variants {
@@ -9,6 +10,21 @@ ShellRoot {
         delegate: Component {
             Scope {
                 required property var modelData
+                property string activePanel: ""
+                readonly property bool specialWorkspaceActive: Services.Workspaces.specialActiveForScreen(modelData)
+
+                function togglePanel(panel) {
+                    activePanel = activePanel === panel ? "" : panel;
+                }
+
+                function closePanels() {
+                    activePanel = "";
+                }
+
+                onSpecialWorkspaceActiveChanged: {
+                    if (specialWorkspaceActive)
+                        closePanels();
+                }
 
                 WallpaperSurface {
                     screen: modelData
@@ -17,28 +33,37 @@ ShellRoot {
                 RailSurface {
                     id: rail
                     screen: modelData
-                    onControlRequested: controlSurface.visible = !controlSurface.visible
-                    onLauncherRequested: launcherSurface.visible = !launcherSurface.visible
-                    onThemesRequested: themeSurface.visible = !themeSurface.visible
+                    visible: !specialWorkspaceActive
+                    onAppearanceRequested: togglePanel("appearance")
+                    onControlRequested: togglePanel("control")
+                    onLauncherRequested: togglePanel("launcher")
                 }
 
                 ControlSurface {
                     id: controlSurface
                     anchorWindow: rail
+                    panelVisible: !specialWorkspaceActive && activePanel === "control"
+                    onDismissRequested: closePanels()
                 }
 
                 LauncherSurface {
                     id: launcherSurface
                     anchorWindow: rail
+                    panelVisible: !specialWorkspaceActive && activePanel === "launcher"
+                    onDismissRequested: closePanels()
+                    onAppearanceRequested: activePanel = "appearance"
                 }
 
-                ThemeSurface {
-                    id: themeSurface
-                    anchorWindow: rail
+                AppearanceSurface {
+                    id: appearanceSurface
+                    screen: modelData
+                    panelVisible: !specialWorkspaceActive && activePanel === "appearance"
+                    onDismissRequested: closePanels()
                 }
 
                 OsdSurface {
                     screen: modelData
+                    shellVisible: !specialWorkspaceActive
                 }
             }
         }

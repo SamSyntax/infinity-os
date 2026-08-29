@@ -11,6 +11,7 @@ sys.path.insert(0, str(REPO / "installation/lib"))
 from safe_fs import atomic_write, read_existing_regular, read_regular, remove_regular, resolve_root, target_identity, validate_relative, validate_user
 
 THEMES = REPO / "desktop/themes"
+WALLPAPERS = REPO / "desktop/wallpapers"
 THEME_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
 
@@ -27,9 +28,42 @@ def theme_files():
     return sorted(path for path in THEMES.glob("*.json") if path.name != "schema.json" and not path.is_symlink())
 
 
-def command_list(_args):
+def wallpaper_catalog():
+    titles = {}
     for path in theme_files():
         theme = json.loads(path.read_text(encoding="utf-8"))
+        titles[Path(theme["wallpaper"]["path"]).stem] = theme["wallpaper"]["title"]
+    return [
+        {"id": path.stem, "title": titles.get(path.stem, path.stem.replace("-", " ").title()), "path": str(path.relative_to(REPO))}
+        for path in sorted(WALLPAPERS.glob("*.svg"))
+        if path.is_file() and not path.is_symlink()
+    ]
+
+
+def load_wallpaper(wallpaper_id):
+    if not THEME_ID.fullmatch(wallpaper_id):
+        raise SystemExit(f"invalid wallpaper id: {wallpaper_id!r}")
+    path = WALLPAPERS / f"{wallpaper_id}.svg"
+    if not path.is_file() or path.is_symlink():
+        raise SystemExit(f"unknown wallpaper: {wallpaper_id}")
+    return path
+
+
+def command_list(args):
+    themes = [json.loads(path.read_text(encoding="utf-8")) for path in theme_files()]
+    if args.json:
+        print(json.dumps([
+            {
+                "id": theme["id"],
+                "name": theme["name"],
+                "mode": theme["mode"],
+                "palette": theme["palette"],
+                "wallpaper": theme["wallpaper"],
+            }
+            for theme in themes
+        ], sort_keys=True))
+        return
+    for theme in themes:
         print(f"{theme['id']}\t{theme['mode']}\t{theme['name']}")
 
 
@@ -38,24 +72,45 @@ def command_preview(args):
     print(json.dumps({"id": theme["id"], "name": theme["name"], "mode": theme["mode"], "palette": theme["palette"], "wallpaper": theme["wallpaper"]}, indent=2, sort_keys=True))
 
 
+def command_wallpapers(args):
+    wallpapers = wallpaper_catalog()
+    if args.json:
+        print(json.dumps(wallpapers, sort_keys=True))
+        return
+    for wallpaper in wallpapers:
+        print(f"{wallpaper['id']}\t{wallpaper['title']}")
+
+
 def render_files(theme):
     palette = theme["palette"]
     def rgba(color, alpha="ee"):
         return f"rgba({color.removeprefix('#')}{alpha})"
+    def rgb(color):
+        return f"rgb({color.removeprefix('#')})"
     active = ", ".join(f'"{rgba(color)}"' for color in theme["hyprland"]["activeBorder"])
     inactive = rgba(theme["hyprland"]["inactiveBorder"], "aa")
     blur = "true" if theme["hyprland"]["blur"] else "false"
     return {
         ".config/infinity-os/theme.json": json.dumps(theme, indent=2, sort_keys=True) + "\n",
-        ".config/quickshell/generated/theme.json": json.dumps(theme["quickshell"] | {"palette": palette}, indent=2, sort_keys=True) + "\n",
+        ".config/quickshell/generated/theme.json": json.dumps(theme["quickshell"] | {"themeId": theme["id"], "name": theme["name"], "mode": theme["mode"], "palette": palette}, indent=2, sort_keys=True) + "\n",
         ".config/hypr/generated-theme.lua": "hl.config({\n"
         f"  general = {{ col = {{ active_border = {{ colors = {{ {active} }}, angle = 35 }}, inactive_border = \"{inactive}\" }} }},\n"
         f"  decoration = {{ rounding = {theme['hyprland']['rounding']}, blur = {{ enabled = {blur} }} }},\n"
         "})\n",
+        ".config/hypr/generated-lock.conf": "\n".join([
+            f"$infinityLockBackground = {rgb(theme['lock']['background'])}",
+            f"$infinityLockText = {rgb(theme['lock']['text'])}",
+            f"$infinityLockSurface = {rgb(palette['surface'])}",
+            f"$infinityLockBorder = {rgb(palette['border'])}",
+            f"$infinityLockAccent = {rgb(palette['accent'])}",
+            f"$infinityLockError = {rgb(palette['error'])}",
+            "",
+        ]),
         ".config/ghostty/themes/infinity.conf": f"background = {theme['terminal']['background']}\nforeground = {theme['terminal']['foreground']}\npalette = 4={theme['terminal']['accent']}\n",
         ".config/tmux/infinity-theme.conf": f"set -g status-bg '{theme['tmux']['statusBg']}'\nset -g status-fg '{theme['tmux']['statusFg']}'\n",
         ".config/nvim/lua/infinity_theme.lua": f"return {{ flavor = '{theme['neovim']['flavor']}', accent = '{theme['neovim']['accent']}' }}\n",
         ".local/share/infinity-os/current-theme": theme["id"] + "\n",
+        ".local/share/infinity-os/wallpaper.json": json.dumps({"wallpaperId": Path(theme["wallpaper"]["path"]).stem, "title": theme["wallpaper"]["title"]}, indent=2, sort_keys=True) + "\n",
     }
 
 
@@ -108,14 +163,52 @@ def command_apply(args):
     print(f"applied theme {theme['id']} to {home}")
 
 
+def command_wallpaper(args):
+    wallpaper_src = load_wallpaper(args.wallpaper)
+    try:
+        root = resolve_root(args.target_root)
+        user = validate_user(args.target_user)
+        owner = None if args.dry_run else target_identity(root, user)
+    except (OSError, KeyError, ValueError) as error:
+        raise SystemExit(f"invalid wallpaper target: {error}") from error
+    home = root / "home" / user
+    destination = home / ".local/share/infinity-os/current-wallpaper.svg"
+    state_destination = home / ".local/share/infinity-os/wallpaper.json"
+    entry = next(item for item in wallpaper_catalog() if item["id"] == args.wallpaper)
+    planned = {
+        destination: read_existing_regular(REPO, wallpaper_src),
+        state_destination: (json.dumps({"wallpaperId": entry["id"], "title": entry["title"]}, indent=2, sort_keys=True) + "\n").encode(),
+    }
+    if args.dry_run:
+        print(f"DRY-RUN apply wallpaper {entry['id']} to {home}")
+        print(f"PLAN copy {destination}")
+        print(f"PLAN write {state_destination}")
+        return
+    try:
+        apply_transaction(root, home, planned, owner)
+    except BaseException as error:
+        raise SystemExit(f"wallpaper apply failed and rollback completed: {error}") from error
+    print(f"applied wallpaper {entry['id']} to {home}")
+
+
 def main():
     parser = argparse.ArgumentParser(prog="infinity-theme")
     sub = parser.add_subparsers(required=True)
     list_parser = sub.add_parser("list")
+    list_parser.add_argument("--json", action="store_true")
     list_parser.set_defaults(func=command_list)
     preview = sub.add_parser("preview")
     preview.add_argument("theme")
     preview.set_defaults(func=command_preview)
+    wallpapers = sub.add_parser("wallpapers")
+    wallpapers.add_argument("--json", action="store_true")
+    wallpapers.set_defaults(func=command_wallpapers)
+    wallpaper = sub.add_parser("wallpaper")
+    wallpaper.add_argument("wallpaper")
+    wallpaper.add_argument("--dry-run", action="store_true")
+    wallpaper.add_argument("--target-root", default="/")
+    wallpaper.add_argument("--target-user", default=os.environ.get("USER", "user"))
+    wallpaper.set_defaults(func=command_wallpaper)
     apply = sub.add_parser("apply")
     apply.add_argument("theme")
     apply.add_argument("--dry-run", action="store_true")

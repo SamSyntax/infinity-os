@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Original muted cobalt dither relay wallpaper">
+  <defs>
+    <pattern id="coldGrain" width="17" height="19" patternUnits="userSpaceOnUse"><circle cx="2" cy="4" r=".7" fill="#d6dae4" opacity=".2"/><circle cx="12" cy="8" r=".48" fill="#7184b6" opacity=".3"/><rect x="7" y="16" width="2" height="1" fill="#d6dae4" opacity=".14"/></pattern>
+    <pattern id="cobaltDots" width="9" height="9" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.25" fill="#d6dae4"/><circle cx="7" cy="7" r=".65" fill="#7184b6"/></pattern>
+    <clipPath id="prism"><path d="M1190 62l291 188-90 188 100 182-286 222-274-218 105-180-96-180z"/></clipPath>
+  </defs>
+  <rect width="1600" height="900" fill="#0b1020"/><rect width="1600" height="900" fill="url(#coldGrain)" opacity=".6"/>
+  <g fill="none" stroke="#29334f"><path d="M70 70h712M70 780h712"/><path d="M858 64v766"/><circle cx="1200" cy="438" r="330"/><circle cx="1200" cy="438" r="220" stroke-dasharray="2 10"/></g>
+  <g fill="#e5e7ee"><text x="72" y="112" font-family="IBM Plex Mono" font-size="13" letter-spacing="5">INFINITY / COBALT RELAY</text><text x="72" y="200" font-family="IBM Plex Serif" font-size="84">Vector Sleep</text></g>
+  <text x="76" y="237" fill="#8790a9" font-family="IBM Plex Mono" font-size="12" letter-spacing="3">EDITION 06 · MUTED-SPECTRUM VECTOR MAP</text>
+  <g transform="translate(72 330)" font-family="IBM Plex Mono" font-size="12"><g fill="#8790a9"><text>VECTOR</text><text y="44">AZIMUTH</text><text y="88">DEPTH</text><text y="132">STATUS</text></g><g fill="#e5e7ee" text-anchor="end"><text x="666">C-61</text><text x="666" y="44">318°</text><text x="666" y="88">-42 DB</text><text x="666" y="132">DORMANT</text></g><g stroke="#29334f"><path d="M0 15h666M0 59h666M0 103h666M0 147h666"/></g></g>
+  <g clip-path="url(#prism)"><rect x="900" y="50" width="620" height="800" fill="url(#cobaltDots)"/><path d="M944 180l532 104-486 186 472 172-444 154" fill="none" stroke="#0b1020" stroke-width="50" opacity=".74"/><rect x="900" y="327" width="630" height="24" fill="#0b1020" opacity=".91"/><rect x="926" y="574" width="590" height="16" fill="#0b1020" opacity=".95"/></g>
+  <g fill="none" stroke="#7184b6"><path d="M928 340h560" stroke-dasharray="74 7 15 24"/><path d="M952 586h510" stroke-dasharray="10 5 124 18"/></g>
+  <g fill="#d6dae4" font-family="IBM Plex Mono" font-size="10" letter-spacing="3"><text x="72" y="820">RELAY C61 / SLEEP 0042</text><text x="1310" y="91">DITHER 76%</text></g>
+</svg>

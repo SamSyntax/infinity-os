@@ -40,7 +40,7 @@ Plan first:
 
 The plan writes nothing. It may read `/usr/bin/systemd-detect-virt --quiet` and `/proc/cpuinfo` to show the same microcode decision apply mode will use. It prints:
 
-- repository validation will run before any package write and before log creation;
+- package manifests and the exact pacman argv will be validated before any package write and before log creation;
 - the selected CPU microcode result;
 - that graphics and AUR packages are deferred;
 - that services, boot, greeter, deploy, and theme actions are excluded;
@@ -57,7 +57,7 @@ Safety and scope:
 1. The resolved target root must be `/`. This stage does not chroot and does not install into `/mnt`.
 2. The effective UID must be 0, normally from `sudo`.
 3. `/usr/bin/pacman` must exist and be executable. The installer does not use a `PATH`-resolved pacman.
-4. Repository validation and the complete package list are computed before log creation or any target write.
+4. Package manifests, the complete package list, and the fixed pacman argv are validated before log creation or any target write. The full developer validator is not run as root because it executes repository tests; run `./bin/infinity-validate` as your normal user before invoking the installer with `sudo`.
 5. The only privileged command is exactly `/usr/bin/pacman -Syu --needed --noconfirm -- ...`.
 
 `-Syu` means: sync package databases (`-y`), upgrade the system as needed (`-u`), and install the requested packages (`-S`) in one transaction. This follows Arch’s rule that package installation should not happen against a partially upgraded system. `--needed` avoids reinstalling packages that are already current, `--noconfirm` is gated by the installer-level `--confirm`, and `--` ends pacman options before package names.
