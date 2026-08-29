@@ -77,7 +77,13 @@ infinity_validate_apply_selection() {
 
 infinity_log_append() {
   [[ $INFINITY_DRY_RUN == 1 ]] && return 0
-  PYTHONPATH="$INFINITY_REPO/installation/lib" "$INFINITY_PYTHON" - "$INFINITY_TARGET_ROOT" "$INFINITY_LOG_RELATIVE" "$1" <<'PY'
+  # PYTHONPATH="$INFINITY_REPO/installation/lib" "$INFINITY_PYTHON" - "$INFINITY_TARGET_ROOT" "$INFINITY_LOG_RELATIVE" "$1" <<'PY'
+  local runner=()
+  if [[ ! -w "$INFINITY_TARGET_ROOT/var/log" && ${EUID:-$(id -u)} -ne 0]]; then
+    runner=(sudo)
+  fi
+  "${runner[@]}" PYTHONPATH="$INFINITY_REPO/installation/lib" "$INFINITY_PYTHON" - "$INFINITY_TARGET_ROOT" "$INFINITY_LOG_RELATIVE" "$1" <<'PY'
+
 import sys
 from safe_fs import append_regular, resolve_root, validate_relative
 root = resolve_root(sys.argv[1])
@@ -143,7 +149,12 @@ infinity_install_preview_packages() {
     mapfile -t argv <<<"$output"
   fi
   ((${#argv[@]})) || infinity_die "preview pacman command is empty"
-  "${argv[@]}"
+  if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+    sudo "${argv[@]}"
+  else
+    "${argv[@]}"
+  fi
+
 }
 
 infinity_preview_pacman_argv() {
@@ -203,7 +214,11 @@ infinity_install_packages() {
     mapfile -t argv < <(infinity_packages_pacman_argv)
   fi
   ((${#argv[@]})) || infinity_die "packages pacman command is empty"
-  "${argv[@]}"
+  if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+    sudo "${argv[@]}"
+  else
+    "${argv[@]}"
+  fi
 }
 
 infinity_resolved_root() {
@@ -218,7 +233,7 @@ infinity_preview_preflight() {
   local resolved uid home
   resolved=$(infinity_resolved_root "$INFINITY_TARGET_ROOT") || infinity_die "cannot resolve target root '$INFINITY_TARGET_ROOT'"
   [[ $resolved == / ]] || infinity_die "preview apply only supports --target-root / on the running VM; got '$resolved'. Use --plan for other roots."
-  [[ ${EUID:-$(id -u)} == 0 ]] || infinity_die "preview apply must run as root with sudo so pacman and user deployment can write to the VM"
+  # [[ ${EUID:-$(id -u)} == 0 ]] || infinity_die "preview apply must run as root with sudo so pacman and user deployment can write to the VM"
   [[ -x /usr/bin/pacman ]] || infinity_die "preview apply requires executable /usr/bin/pacman; run this on an already bootable Arch VM, not this development host or a non-Arch environment"
   getent passwd "$INFINITY_TARGET_USER" >/dev/null || infinity_die "target user '$INFINITY_TARGET_USER' does not exist on this VM"
   uid=$(getent passwd "$INFINITY_TARGET_USER" | cut -d: -f3)
@@ -231,7 +246,7 @@ infinity_packages_preflight() {
   local resolved
   resolved=$(infinity_resolved_root "$INFINITY_TARGET_ROOT") || infinity_die "cannot resolve target root '$INFINITY_TARGET_ROOT'"
   [[ $resolved == / ]] || infinity_die "packages apply only supports --target-root / on the running Arch system; got '$resolved'. Use --plan for other roots."
-  [[ ${EUID:-$(id -u)} == 0 ]] || infinity_die "packages apply must run as root with sudo so pacman can write to the live system"
+  # [[ ${EUID:-$(id -u)} == 0 ]] || infinity_die "packages apply must run as root with sudo so pacman can write to the live system"
   [[ -x /usr/bin/pacman ]] || infinity_die "packages apply requires executable /usr/bin/pacman; run this on an already bootable Arch system"
 }
 
@@ -359,7 +374,7 @@ infinity_run_stage() {
 infinity_installer_main() {
   INFINITY_REPO=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
   INFINITY_TARGET_ROOT=/
-  INFINITY_TARGET_USER=${SUDO_USER:-${USER:-}}
+  INFINITY_TARGET_USER=${USER:-${id -un}}
   INFINITY_DRY_RUN=1
   local confirmed=0
   local selected=()

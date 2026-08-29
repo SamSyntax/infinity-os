@@ -6,9 +6,19 @@ import re
 import sys
 from pathlib import Path
 
+from safe_fs import (
+    atomic_write,
+    read_existing_regular,
+    read_regular,
+    remove_regular,
+    resolve_root,
+    target_identity,
+    validate_relative,
+    validate_user,
+)
+
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "installation/lib"))
-from safe_fs import atomic_write, read_existing_regular, read_regular, remove_regular, resolve_root, target_identity, validate_relative, validate_user
 
 THEMES = REPO / "desktop/themes"
 WALLPAPERS = REPO / "desktop/wallpapers"
@@ -25,7 +35,11 @@ def load_theme(theme_id):
 
 
 def theme_files():
-    return sorted(path for path in THEMES.glob("*.json") if path.name != "schema.json" and not path.is_symlink())
+    return sorted(
+        path
+        for path in THEMES.glob("*.json")
+        if path.name != "schema.json" and not path.is_symlink()
+    )
 
 
 def wallpaper_catalog():
@@ -34,7 +48,11 @@ def wallpaper_catalog():
         theme = json.loads(path.read_text(encoding="utf-8"))
         titles[Path(theme["wallpaper"]["path"]).stem] = theme["wallpaper"]["title"]
     return [
-        {"id": path.stem, "title": titles.get(path.stem, path.stem.replace("-", " ").title()), "path": str(path.relative_to(REPO))}
+        {
+            "id": path.stem,
+            "title": titles.get(path.stem, path.stem.replace("-", " ").title()),
+            "path": str(path.relative_to(REPO)),
+        }
         for path in sorted(WALLPAPERS.glob("*.svg"))
         if path.is_file() and not path.is_symlink()
     ]
@@ -52,16 +70,21 @@ def load_wallpaper(wallpaper_id):
 def command_list(args):
     themes = [json.loads(path.read_text(encoding="utf-8")) for path in theme_files()]
     if args.json:
-        print(json.dumps([
-            {
-                "id": theme["id"],
-                "name": theme["name"],
-                "mode": theme["mode"],
-                "palette": theme["palette"],
-                "wallpaper": theme["wallpaper"],
-            }
-            for theme in themes
-        ], sort_keys=True))
+        print(
+            json.dumps(
+                [
+                    {
+                        "id": theme["id"],
+                        "name": theme["name"],
+                        "mode": theme["mode"],
+                        "palette": theme["palette"],
+                        "wallpaper": theme["wallpaper"],
+                    }
+                    for theme in themes
+                ],
+                sort_keys=True,
+            )
+        )
         return
     for theme in themes:
         print(f"{theme['id']}\t{theme['mode']}\t{theme['name']}")
@@ -69,7 +92,19 @@ def command_list(args):
 
 def command_preview(args):
     theme = load_theme(args.theme)
-    print(json.dumps({"id": theme["id"], "name": theme["name"], "mode": theme["mode"], "palette": theme["palette"], "wallpaper": theme["wallpaper"]}, indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "id": theme["id"],
+                "name": theme["name"],
+                "mode": theme["mode"],
+                "palette": theme["palette"],
+                "wallpaper": theme["wallpaper"],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
 
 
 def command_wallpapers(args):
@@ -83,34 +118,65 @@ def command_wallpapers(args):
 
 def render_files(theme):
     palette = theme["palette"]
+
     def rgba(color, alpha="ee"):
         return f"rgba({color.removeprefix('#')}{alpha})"
+
     def rgb(color):
         return f"rgb({color.removeprefix('#')})"
-    active = ", ".join(f'"{rgba(color)}"' for color in theme["hyprland"]["activeBorder"])
+
+    active = ", ".join(
+        f'"{rgba(color)}"' for color in theme["hyprland"]["activeBorder"]
+    )
     inactive = rgba(theme["hyprland"]["inactiveBorder"], "aa")
     blur = "true" if theme["hyprland"]["blur"] else "false"
     return {
-        ".config/infinity-os/theme.json": json.dumps(theme, indent=2, sort_keys=True) + "\n",
-        ".config/quickshell/generated/theme.json": json.dumps(theme["quickshell"] | {"themeId": theme["id"], "name": theme["name"], "mode": theme["mode"], "palette": palette}, indent=2, sort_keys=True) + "\n",
+        ".config/infinity-os/theme.json": json.dumps(theme, indent=2, sort_keys=True)
+        + "\n",
+        ".config/quickshell/generated/theme.json": json.dumps(
+            theme["quickshell"]
+            | {
+                "themeId": theme["id"],
+                "name": theme["name"],
+                "mode": theme["mode"],
+                "palette": palette,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
         ".config/hypr/generated-theme.lua": "hl.config({\n"
-        f"  general = {{ col = {{ active_border = {{ colors = {{ {active} }}, angle = 35 }}, inactive_border = \"{inactive}\" }} }},\n"
-        f"  decoration = {{ rounding = {theme['hyprland']['rounding']}, blur = {{ enabled = {blur} }} }},\n"
+        f'  general = {{ col = {{ active_border = {{ colors = {{ {
+            active
+        } }}, angle = 35 }}, inactive_border = "{inactive}" }} }},\n'
+        f"  decoration = {{ rounding = {
+            theme['hyprland']['rounding']
+        }, blur = {{ enabled = {blur} }} }},\n"
         "})\n",
-        ".config/hypr/generated-lock.conf": "\n".join([
-            f"$infinityLockBackground = {rgb(theme['lock']['background'])}",
-            f"$infinityLockText = {rgb(theme['lock']['text'])}",
-            f"$infinityLockSurface = {rgb(palette['surface'])}",
-            f"$infinityLockBorder = {rgb(palette['border'])}",
-            f"$infinityLockAccent = {rgb(palette['accent'])}",
-            f"$infinityLockError = {rgb(palette['error'])}",
-            "",
-        ]),
+        ".config/hypr/generated-lock.conf": "\n".join(
+            [
+                f"$infinityLockBackground = {rgb(theme['lock']['background'])}",
+                f"$infinityLockText = {rgb(theme['lock']['text'])}",
+                f"$infinityLockSurface = {rgb(palette['surface'])}",
+                f"$infinityLockBorder = {rgb(palette['border'])}",
+                f"$infinityLockAccent = {rgb(palette['accent'])}",
+                f"$infinityLockError = {rgb(palette['error'])}",
+                "",
+            ]
+        ),
         ".config/ghostty/themes/infinity.conf": f"background = {theme['terminal']['background']}\nforeground = {theme['terminal']['foreground']}\npalette = 4={theme['terminal']['accent']}\n",
         ".config/tmux/infinity-theme.conf": f"set -g status-bg '{theme['tmux']['statusBg']}'\nset -g status-fg '{theme['tmux']['statusFg']}'\n",
         ".config/nvim/lua/infinity_theme.lua": f"return {{ flavor = '{theme['neovim']['flavor']}', accent = '{theme['neovim']['accent']}' }}\n",
         ".local/share/infinity-os/current-theme": theme["id"] + "\n",
-        ".local/share/infinity-os/wallpaper.json": json.dumps({"wallpaperId": Path(theme["wallpaper"]["path"]).stem, "title": theme["wallpaper"]["title"]}, indent=2, sort_keys=True) + "\n",
+        ".local/share/infinity-os/wallpaper.json": json.dumps(
+            {
+                "wallpaperId": Path(theme["wallpaper"]["path"]).stem,
+                "title": theme["wallpaper"]["title"],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
     }
 
 
@@ -144,10 +210,17 @@ def command_apply(args):
     home = root / "home" / user
     wallpaper_src = REPO / wallpaper_rel
     expected_wallpaper_root = REPO / "desktop/wallpapers"
-    if not wallpaper_src.is_file() or wallpaper_src.is_symlink() or expected_wallpaper_root not in wallpaper_src.parents:
+    if (
+        not wallpaper_src.is_file()
+        or wallpaper_src.is_symlink()
+        or expected_wallpaper_root not in wallpaper_src.parents
+    ):
         raise SystemExit(f"unsafe or missing wallpaper: {wallpaper_rel}")
     rendered = render_files(theme)
-    planned = {home / validate_relative(relative): data.encode() for relative, data in rendered.items()}
+    planned = {
+        home / validate_relative(relative): data.encode()
+        for relative, data in rendered.items()
+    }
     wallpaper_destination = home / ".local/share/infinity-os/current-wallpaper.svg"
     planned[wallpaper_destination] = read_existing_regular(REPO, wallpaper_src)
     if args.dry_run:
@@ -159,7 +232,9 @@ def command_apply(args):
     try:
         apply_transaction(root, home, planned, owner, args.test_fail_after)
     except BaseException as error:
-        raise SystemExit(f"theme apply failed and rollback completed: {error}") from error
+        raise SystemExit(
+            f"theme apply failed and rollback completed: {error}"
+        ) from error
     print(f"applied theme {theme['id']} to {home}")
 
 
@@ -177,7 +252,14 @@ def command_wallpaper(args):
     entry = next(item for item in wallpaper_catalog() if item["id"] == args.wallpaper)
     planned = {
         destination: read_existing_regular(REPO, wallpaper_src),
-        state_destination: (json.dumps({"wallpaperId": entry["id"], "title": entry["title"]}, indent=2, sort_keys=True) + "\n").encode(),
+        state_destination: (
+            json.dumps(
+                {"wallpaperId": entry["id"], "title": entry["title"]},
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        ).encode(),
     }
     if args.dry_run:
         print(f"DRY-RUN apply wallpaper {entry['id']} to {home}")
@@ -187,7 +269,9 @@ def command_wallpaper(args):
     try:
         apply_transaction(root, home, planned, owner)
     except BaseException as error:
-        raise SystemExit(f"wallpaper apply failed and rollback completed: {error}") from error
+        raise SystemExit(
+            f"wallpaper apply failed and rollback completed: {error}"
+        ) from error
     print(f"applied wallpaper {entry['id']} to {home}")
 
 
@@ -214,7 +298,9 @@ def main():
     apply.add_argument("--dry-run", action="store_true")
     apply.add_argument("--target-root", default="/")
     apply.add_argument("--target-user", default=os.environ.get("USER", "user"))
-    apply.add_argument("--test-fail-after", type=int, default=None, help=argparse.SUPPRESS)
+    apply.add_argument(
+        "--test-fail-after", type=int, default=None, help=argparse.SUPPRESS
+    )
     apply.set_defaults(func=command_apply)
     args = parser.parse_args()
     args.func(args)
