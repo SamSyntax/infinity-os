@@ -79,7 +79,7 @@ infinity_log_append() {
   [[ $INFINITY_DRY_RUN == 1 ]] && return 0
   # PYTHONPATH="$INFINITY_REPO/installation/lib" "$INFINITY_PYTHON" - "$INFINITY_TARGET_ROOT" "$INFINITY_LOG_RELATIVE" "$1" <<'PY'
   local runner=()
-  if [[ ! -w "$INFINITY_TARGET_ROOT/var/log" && ${EUID:-$(id -u)} -ne 0]]; then
+  if [[ ! -w "$INFINITY_TARGET_ROOT/var/log" && ${EUID:-$(id -u)} -ne 0 ]]; then
     runner=(sudo)
   fi
   "${runner[@]}" PYTHONPATH="$INFINITY_REPO/installation/lib" "$INFINITY_PYTHON" - "$INFINITY_TARGET_ROOT" "$INFINITY_LOG_RELATIVE" "$1" <<'PY'
