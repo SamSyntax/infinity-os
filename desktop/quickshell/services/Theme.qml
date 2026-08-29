@@ -88,8 +88,12 @@ Singleton {
             root.applying = false;
             if (exitCode === 0) {
                 root.previewTheme = null;
-                root.applySucceeded(root.pendingThemeId);
+                const appliedThemeId = root.pendingThemeId;
+                root.pendingThemeId = "";
+                root.applySucceeded(appliedThemeId);
             } else {
+                root.previewTheme = null;
+                root.pendingThemeId = "";
                 root.applyError = applyFailure.text.trim() || applyOutput.text.trim() || "Theme apply failed";
             }
         }

@@ -219,6 +219,7 @@ def qml_hook():
         "services/SystemResources.qml",
         "services/Network.qml",
         "services/Power.qml",
+        "services/Audio.qml",
         "components/ThemeCard.qml",
         "surfaces/WallpaperSurface.qml",
         "surfaces/RailSurface.qml",
@@ -226,8 +227,6 @@ def qml_hook():
         "surfaces/LauncherSurface.qml",
         "surfaces/OsdSurface.qml",
         "surfaces/AppearanceSurface.qml",
-        "surfaces/ThemeSurface.qml",
-        "surfaces/WallpaperPickerSurface.qml",
     }
     missing = sorted(path for path in required if not (REPO / "desktop/quickshell" / path).is_file())
     if missing:

@@ -82,9 +82,9 @@ sudo ./install.sh --confirm --stage packages
 ## Current status
 
 - Implemented and repository-tested: staged plan/apply CLI, standalone live-root-only official package stage, live-root-only preview stage, grouped package manifests, symlink-safe deployment/logging with backups and a manifest, modular Hyprland Lua, theme schema/rollback CLI, six original archive-style themes and wallpapers, and one validation command.
-- Implemented and repository-tested: exclusive outside-dismissable Quickshell panels, executable launcher entries, volume and lock actions, atomic theme and wallpaper UI flows, persistent reduced-motion settings, animated wallpaper crossfades, themed hyprlock animations, and a non-interactive animated greeter layer behind ReGreet.
+- Implemented and repository-tested: a grouped top navbar with live Hyprland workspaces, CPU/memory, NetworkManager, UPower, date/time, launcher, controls, and real lock action; a monitor-local fullscreen appearance archive with preview/commit/cancel; atomic theme and wallpaper flows; reduced-motion-aware animated grain, scanline, and wallpaper transitions; special-workspace shell suppression; themed hyprlock animations; and a non-interactive animated greeter layer behind ReGreet.
 - Template-only, not applied or VM-tested yet: systemd-boot/Plymouth rendering, graphics-driver selection, service enablement, greetd/ReGreet authentication, and the full hypridle/hyprlock lifecycle.
-- Mocked/placeholder backends: live network/Bluetooth/power/media values and unsolicited OSD system events. Launcher indexing is curated rather than desktop-file driven.
+- Mocked/placeholder backends: Bluetooth, media, and unsolicited OSD system events. Launcher indexing is curated rather than desktop-file driven. Network, battery/power, CPU/memory, and Hyprland workspace state are live and show explicit unavailable states when their providers are absent.
 - Runtime services are not claimed tested on this host.
 
 ## Learn the implementation

@@ -1,5 +1,4 @@
 import Quickshell
-import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
 import "../components" as Components
@@ -10,19 +9,15 @@ PopupWindow {
     required property var anchorWindow
     property bool panelVisible: false
     readonly property bool qaVisible: Quickshell.env("INFINITY_QA") === "control"
-    property real outputLevel: 0.64
+    readonly property real outputLevel: Services.Audio.outputLevel
     signal dismissRequested
 
     function setOutputLevel(value) {
-        outputLevel = Math.max(0, Math.min(1, value));
-        volumeProcess.command = ["/usr/bin/wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", Math.round(outputLevel * 100) + "%"];
-        volumeProcess.running = true;
-        Services.ShellState.showOsd("VOLUME", outputLevel);
+        const level = Math.max(0, Math.min(1, value));
+        Services.Audio.setOutputLevel(level);
+        Services.ShellState.showOsd("VOLUME", level);
     }
 
-    Process {
-        id: volumeProcess
-    }
     anchor.window: anchorWindow
     anchor.rect.x: Math.max(12, anchorWindow.width - implicitWidth - 12)
     anchor.rect.y: anchorWindow.height + 12
@@ -129,6 +124,7 @@ PopupWindow {
                 Layout.preferredHeight: 34
                 radius: 3
                 color: Services.Theme.surfaceAlt
+                opacity: Services.Audio.available ? 1 : 0.55
                 Rectangle {
                     width: parent.width * root.outputLevel
                     height: parent.height
@@ -138,12 +134,13 @@ PopupWindow {
                 }
                 MouseArea {
                     anchors.fill: parent
+                    enabled: Services.Audio.available && !Services.Audio.setting
                     onClicked: event => root.setOutputLevel(event.x / width)
                 }
             }
             Components.FolioLabel {
                 Layout.alignment: Qt.AlignRight
-                text: Math.round(root.outputLevel * 100) + " / 100"
+                text: Services.Audio.available ? Math.round(root.outputLevel * 100) + " / 100" : "OUTPUT UNAVAILABLE"
             }
         }
     }

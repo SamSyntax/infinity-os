@@ -23,12 +23,14 @@ RowLayout {
         color: Services.Theme.muted
         font.family: Services.Theme.fontFamily
         font.pixelSize: 12
+        textFormat: Text.PlainText
     }
     Text {
         text: root.value
         color: root.valueColor
         font.family: Services.Theme.monoFamily
         font.pixelSize: 10
+        textFormat: Text.PlainText
     }
     TapHandler {
         enabled: root.interactive

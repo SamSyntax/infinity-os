@@ -299,6 +299,7 @@ PanelWindow {
                 font.pixelSize: 8
                 maximumLineCount: 1
                 text: Services.Network.label
+                textFormat: Text.PlainText
                 width: root.compact ? 52 : 92
             }
             Text {

@@ -72,8 +72,12 @@ Singleton {
             if (exitCode === 0) {
                 stateFile.reload();
                 root.clearPreview();
-                root.applySucceeded(root.pendingWallpaperId);
+                const appliedWallpaperId = root.pendingWallpaperId;
+                root.pendingWallpaperId = "";
+                root.applySucceeded(appliedWallpaperId);
             } else {
+                root.clearPreview();
+                root.pendingWallpaperId = "";
                 root.applyError = applyFailure.text.trim() || applyOutput.text.trim() || "Wallpaper apply failed";
             }
         }

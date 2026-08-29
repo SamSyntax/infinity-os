@@ -38,8 +38,13 @@ def main():
         require("panelVisible" in surface and "dismissRequested" in surface and "grabFocus" in surface, f"{name} lacks centralized dismissal wiring")
 
     appearance = (REPO / "desktop/quickshell/surfaces/AppearanceSurface.qml").read_text(encoding="utf-8")
-    for expected in ["panelVisible", "dismissRequested", "WlrKeyboardFocus.Exclusive", "Services.Theme.preview", "Services.Wallpaper.preview", "function commit()", "function cancel()"]:
+    surface_module = (REPO / "desktop/quickshell/surfaces/qmldir").read_text(encoding="utf-8")
+    require("AppearanceSurface 1.0 AppearanceSurface.qml" in surface_module, "appearance surface is not registered in the QML module")
+    require("ThemeSurface 1.0" not in surface_module and "WallpaperPickerSurface 1.0" not in surface_module, "obsolete appearance surfaces remain registered")
+    for expected in ["panelVisible", "dismissRequested", "WlrKeyboardFocus.Exclusive", "Services.Theme.preview", "Services.Wallpaper.preview", "function commit()", "function cancel()", "applyInFlight", "applyError", "DRAG STRIP", "onApplySucceeded"]:
         require(expected in appearance, f"appearance surface omitted {expected}")
+    commit_body = appearance.split("function commit()", 1)[1].split("anchors {", 1)[0]
+    require("dismissRequested" not in commit_body, "appearance chooser dismisses before apply succeeds")
 
     rail = (REPO / "desktop/quickshell/surfaces/RailSurface.qml").read_text(encoding="utf-8")
     for expected in ["infinity-navbar", "Services.Workspaces", "Services.SystemResources.cpuLabel", "Services.Network.label", "Services.Power.label", "Services.Time.clock"]:
@@ -50,6 +55,7 @@ def main():
         "SystemResources.qml": ['"/proc/stat"', '"/proc/meminfo"'],
         "Network.qml": ['"/usr/bin/nmcli"', "NET --"],
         "Power.qml": ['"/usr/bin/upower"', "PWR --"],
+        "Audio.qml": ['"/usr/bin/wpctl"', '"get-volume"', "queuedLevel"],
     }
     for name, expected_values in service_commands.items():
         service = (REPO / "desktop/quickshell/services" / name).read_text(encoding="utf-8")
@@ -62,6 +68,11 @@ def main():
 
     theme_service = (REPO / "desktop/quickshell/services/Theme.qml").read_text(encoding="utf-8")
     wallpaper_service = (REPO / "desktop/quickshell/services/Wallpaper.qml").read_text(encoding="utf-8")
+    control_surface = (REPO / "desktop/quickshell/surfaces/ControlSurface.qml").read_text(encoding="utf-8")
+    require("Services.Audio.outputLevel" in control_surface and "0.64" not in control_surface, "control surface volume is not live telemetry")
+    require("previewTheme = null" in theme_service and "pendingThemeId = \"\"" in theme_service, "theme failure does not clear preview transaction state")
+    require("root.clearPreview()" in wallpaper_service and "pendingWallpaperId = \"\"" in wallpaper_service, "wallpaper failure does not clear preview transaction state")
+
     require('"apply", themeId' in theme_service and '"list", "--json"' in theme_service, "theme UI lacks catalog/apply commands")
     require('"wallpaper", wallpaperId' in wallpaper_service and '"wallpapers", "--json"' in wallpaper_service, "wallpaper UI lacks catalog/apply commands")
 

@@ -16,17 +16,21 @@ PanelWindow {
     readonly property var selectedWallpaper: selectedItem === null ? null : (mode === "themes" ? selectedItem.wallpaper : selectedItem)
     readonly property string selectedTitle: selectedItem === null ? "Loading archive" : (mode === "themes" ? selectedItem.name : selectedItem.title)
     readonly property string selectedId: selectedItem === null ? "--" : selectedItem.id
+    readonly property bool applyInFlight: Services.Theme.applying || Services.Wallpaper.applying
+    readonly property string applyError: Services.Theme.applyError.length > 0 ? Services.Theme.applyError : Services.Wallpaper.applyError
 
     signal dismissRequested
 
     function select(index) {
-        if (entries.length === 0)
+        if (applyInFlight || entries.length === 0)
             return;
         selectedIndex = (index + entries.length) % entries.length;
         previewSelection();
     }
 
     function selectMode(nextMode) {
+        if (applyInFlight)
+            return;
         mode = nextMode;
         selectedIndex = 0;
         previewSelection();
@@ -45,6 +49,8 @@ PanelWindow {
     }
 
     function cancel() {
+        if (applyInFlight)
+            return;
         Services.Theme.clearPreview();
         Services.Wallpaper.clearPreview();
         dismissRequested();
@@ -60,7 +66,6 @@ PanelWindow {
             Services.Theme.clearPreview();
             Services.Wallpaper.apply(selectedItem.id);
         }
-        dismissRequested();
     }
 
     anchors {
@@ -90,12 +95,30 @@ PanelWindow {
         target: Services.Theme
         function onApplySucceeded(themeId) {
             Services.Theme.clearPreview();
+            root.dismissRequested();
+        }
+        function onApplyErrorChanged() {
+            if (!Services.Theme.applying && Services.Theme.applyError.length > 0)
+                Services.Theme.clearPreview();
+        }
+        function onCatalogChanged() {
+            if (root.visible && root.mode === "themes")
+                root.previewSelection();
         }
     }
     Connections {
         target: Services.Wallpaper
         function onApplySucceeded(wallpaperId) {
             Services.Wallpaper.clearPreview();
+            root.dismissRequested();
+        }
+        function onApplyErrorChanged() {
+            if (!Services.Wallpaper.applying && Services.Wallpaper.applyError.length > 0)
+                Services.Wallpaper.clearPreview();
+        }
+        function onCatalogChanged() {
+            if (root.visible && root.mode === "wallpapers")
+                root.previewSelection();
         }
     }
 
@@ -260,12 +283,14 @@ PanelWindow {
                             font.pixelSize: 22
                             font.weight: Font.DemiBold
                             text: root.selectedTitle
+                            textFormat: Text.PlainText
                         }
                         Text {
                             color: Services.Theme.accent
                             font.family: Services.Theme.monoFamily
                             font.pixelSize: 8
                             text: root.selectedId.toUpperCase()
+                            textFormat: Text.PlainText
                         }
                     }
                 }
@@ -346,6 +371,7 @@ PanelWindow {
                                 font.family: Services.Theme.monoFamily
                                 font.pixelSize: 8
                                 text: root.mode === "themes" ? modelData.name.toUpperCase() : modelData.title.toUpperCase()
+                                textFormat: Text.PlainText
                                 width: parent.width - 18
                             }
                             MouseArea {
@@ -360,6 +386,17 @@ PanelWindow {
             }
         }
 
+        Text {
+            anchors.bottom: filmstrip.top
+            anchors.bottomMargin: 7
+            anchors.left: filmstrip.left
+            color: Services.Theme.muted
+            font.family: Services.Theme.monoFamily
+            font.letterSpacing: 1.1
+            font.pixelSize: 8
+            text: "← / →  BROWSE    DRAG STRIP"
+        }
+
         Column {
             id: actionColumn
             anchors.bottom: parent.bottom
@@ -369,10 +406,21 @@ PanelWindow {
             spacing: 8
             width: 150
 
+            Text {
+                color: Services.Theme.error
+                font.family: Services.Theme.monoFamily
+                font.pixelSize: 8
+                text: root.applyError
+                textFormat: Text.PlainText
+                visible: root.applyError.length > 0
+                width: parent.width
+                wrapMode: Text.Wrap
+            }
+
             Rectangle {
                 color: applyMouse.pressed ? Services.Theme.surfaceAlt : Services.Theme.accent
                 height: 46
-                opacity: Services.Theme.applying || Services.Wallpaper.applying ? 0.5 : 1
+                opacity: root.applyInFlight ? 0.5 : 1
                 radius: 4
                 width: parent.width
                 Text {
@@ -381,12 +429,12 @@ PanelWindow {
                     font.family: Services.Theme.monoFamily
                     font.pixelSize: 9
                     font.weight: Font.DemiBold
-                    text: "COMMIT"
+                    text: root.applyInFlight ? "APPLYING" : "COMMIT"
                 }
                 MouseArea {
                     id: applyMouse
                     anchors.fill: parent
-                    enabled: !Services.Theme.applying && !Services.Wallpaper.applying
+                    enabled: !root.applyInFlight
                     onClicked: root.commit()
                 }
             }
@@ -395,6 +443,7 @@ PanelWindow {
                 border.width: 1
                 color: cancelMouse.containsMouse ? Services.Theme.surfaceAlt : "transparent"
                 height: 38
+                opacity: root.applyInFlight ? 0.45 : 1
                 radius: 4
                 width: parent.width
                 Text {
@@ -407,6 +456,7 @@ PanelWindow {
                 MouseArea {
                     id: cancelMouse
                     anchors.fill: parent
+                    enabled: !root.applyInFlight
                     hoverEnabled: true
                     onClicked: root.cancel()
                 }

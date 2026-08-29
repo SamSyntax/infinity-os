@@ -2,6 +2,5 @@ WallpaperSurface 1.0 WallpaperSurface.qml
 RailSurface 1.0 RailSurface.qml
 ControlSurface 1.0 ControlSurface.qml
 LauncherSurface 1.0 LauncherSurface.qml
-ThemeSurface 1.0 ThemeSurface.qml
-WallpaperPickerSurface 1.0 WallpaperPickerSurface.qml
 OsdSurface 1.0 OsdSurface.qml
+AppearanceSurface 1.0 AppearanceSurface.qml
