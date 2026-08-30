@@ -1,0 +1,10 @@
+{
+  "categories": {
+    "visual-engineering": {
+      "model": "openai/gpt-5.6-sol",
+      "fallback_models": [
+        "openai/gpt-5.6-sol"
+      ]
+    }
+  }
+}

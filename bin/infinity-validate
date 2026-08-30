@@ -210,6 +210,57 @@ def command_refs():
     else:
         ok("command references")
 
+def shader_assets():
+    shader_dir = REPO / "desktop/quickshell/shaders"
+    sources = sorted(shader_dir.glob("*.frag"))
+    compiled = sorted(shader_dir.glob("*.frag.qsb"))
+    expected_compiled = {Path(f"{source}.qsb") for source in sources}
+    shader_failed = False
+
+    if not sources:
+        fail("Qt shader assets", "no fragment shader sources found")
+        return
+    if set(compiled) != expected_compiled:
+        missing = sorted(str(path.relative_to(REPO)) for path in expected_compiled - set(compiled))
+        unexpected = sorted(str(path.relative_to(REPO)) for path in set(compiled) - expected_compiled)
+        fail("Qt shader assets", f"source/compiled pairs differ; missing={missing}, unexpected={unexpected}")
+        shader_failed = True
+
+    for source in sources:
+        text = source.read_text(encoding="utf-8")
+        for required in ["#version 440", "layout(location = 0) in vec2 qt_TexCoord0", "layout(std140, binding = 0) uniform buf", "mat4 qt_Matrix", "float qt_Opacity"]:
+            if required not in text:
+                fail("Qt shader assets", f"{source.relative_to(REPO)} omitted {required}")
+                shader_failed = True
+
+    qsb = Path("/usr/lib/qt6/bin/qsb")
+    if not qsb.is_file():
+        discovered_qsb = shutil.which("qsb")
+        qsb = Path(discovered_qsb) if discovered_qsb else Path()
+    if not qsb.is_file():
+        fail("Qt shader assets", "qsb is required to verify compiled shader reflection and deterministic output")
+        shader_failed = True
+    elif set(compiled) == expected_compiled:
+        with tempfile.TemporaryDirectory(prefix="infinity-qsb-") as tmp:
+            for source in sources:
+                asset = Path(f"{source}.qsb")
+                rebuilt = Path(tmp) / asset.name
+                bake = subprocess.run([str(qsb), "--qt6", "-o", str(rebuilt), str(source)], cwd=REPO, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                if bake.returncode != 0:
+                    fail("Qt shader assets", f"failed to rebuild {source.relative_to(REPO)}: {bake.stdout.strip()}")
+                    shader_failed = True
+                    continue
+                if rebuilt.read_bytes() != asset.read_bytes():
+                    fail("Qt shader assets", f"{asset.relative_to(REPO)} is stale or was baked with different qsb options")
+                    shader_failed = True
+                inspection = subprocess.run([str(qsb), "-d", str(asset)], cwd=REPO, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                if inspection.returncode != 0 or "Stage: Fragment" not in inspection.stdout or '"binding": 0' not in inspection.stdout:
+                    fail("Qt shader assets", f"invalid reflection metadata in {asset.relative_to(REPO)}")
+                    shader_failed = True
+
+    if not shader_failed:
+        ok("Qt shader assets")
+
 def qml_hook():
     required = {
         "services/Theme.qml",
@@ -220,6 +271,9 @@ def qml_hook():
         "services/Network.qml",
         "services/Power.qml",
         "services/Audio.qml",
+        "services/RailGeometry.qml",
+        "components/ArchiveBlackHole.qml",
+        "components/EnergyConnector.qml",
         "components/ThemeCard.qml",
         "surfaces/WallpaperSurface.qml",
         "surfaces/RailSurface.qml",
@@ -296,6 +350,7 @@ def main():
     mappings()
     duplicate_bindings()
     command_refs()
+    shader_assets()
     qml_hook()
     hyprland_theme_bridge()
     installer_dry_run()

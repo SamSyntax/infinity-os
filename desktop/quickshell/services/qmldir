@@ -7,3 +7,4 @@ singleton SystemResources 1.0 SystemResources.qml
 singleton Network 1.0 Network.qml
 singleton Power 1.0 Power.qml
 singleton Audio 1.0 Audio.qml
+singleton RailGeometry 1.0 RailGeometry.qml

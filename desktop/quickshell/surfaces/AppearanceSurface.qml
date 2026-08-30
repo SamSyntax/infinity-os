@@ -18,6 +18,30 @@ PanelWindow {
     readonly property string selectedId: selectedItem === null ? "--" : selectedItem.id
     readonly property bool applyInFlight: Services.Theme.applying || Services.Wallpaper.applying
     readonly property string applyError: Services.Theme.applyError.length > 0 ? Services.Theme.applyError : Services.Wallpaper.applyError
+    readonly property bool compact: width < 1500 || height < 900
+    readonly property bool narrow: width < 960
+    readonly property bool short: height < 800
+    readonly property real outerGutter: narrow ? 16 : (compact ? 32 : 52)
+    readonly property real navigationGutter: narrow ? 16 : (compact ? 28 : 38)
+    readonly property real navigationWidth: narrow ? Math.max(76, Math.min(104, width * 0.22)) : (compact ? 132 : 150)
+    readonly property real navigationItemWidth: narrow ? navigationWidth : navigationWidth - 18
+    readonly property real contentGap: narrow ? 14 : (compact ? 24 : 32)
+    readonly property real contentLeft: navigationGutter + navigationWidth + contentGap
+    readonly property real previewTopGutter: short ? 20 : (compact ? 30 : 42)
+    readonly property real previewFooterGap: short ? 14 : (compact ? 18 : 24)
+    readonly property real metadataInset: short ? 14 : (compact ? 18 : 24)
+    readonly property real metadataHeight: short ? 70 : (compact ? 80 : 86)
+    readonly property real filmstripHeight: short ? 84 : (compact ? 100 : 116)
+    readonly property real filmstripBottomGutter: short ? 18 : (compact ? 26 : 36)
+    readonly property real filmstripLeft: narrow ? outerGutter : contentLeft
+    readonly property real actionContentWidth: narrow ? Math.max(104, Math.min(124, width * 0.2)) : (compact ? 132 : 150)
+    readonly property real actionPadding: narrow || short ? 8 : 10
+    readonly property real actionWidth: actionContentWidth + actionPadding * 2
+    readonly property real actionContentBottomGutter: short ? 18 : (compact ? 28 : 38)
+    readonly property real actionPanelBottomMargin: Math.max(10, actionContentBottomGutter - actionPadding)
+    readonly property real actionPanelRightMargin: Math.max(8, outerGutter - actionPadding)
+    readonly property real filmActionGap: narrow ? 12 : (compact ? 16 : 18)
+    readonly property real footerHeight: Math.max(filmstripBottomGutter + filmstripHeight, actionPanelBottomMargin + actionBackplate.height)
 
     signal dismissRequested
 
@@ -31,9 +55,26 @@ PanelWindow {
     function selectMode(nextMode) {
         if (applyInFlight)
             return;
+        if (mode === nextMode)
+            return;
+        Services.Theme.clearPreview();
+        Services.Wallpaper.clearPreview();
         mode = nextMode;
-        selectedIndex = 0;
-        previewSelection();
+        syncSelection();
+    }
+
+    function syncSelection() {
+        if (entries.length === 0)
+            return;
+        const currentId = mode === "themes" ? Services.Theme.currentThemeId : Services.Wallpaper.currentWallpaperId;
+        for (let index = 0; index < entries.length; index++) {
+            if (entries[index].id === currentId) {
+                selectedIndex = index;
+                return;
+            }
+        }
+        if (selectedIndex < 0 || selectedIndex >= entries.length)
+            selectedIndex = 0;
     }
 
     function previewSelection() {
@@ -83,8 +124,9 @@ PanelWindow {
 
     onPanelVisibleChanged: {
         if (panelVisible) {
-            selectedIndex = 0;
-            previewSelection();
+            Services.Theme.clearPreview();
+            Services.Wallpaper.clearPreview();
+            syncSelection();
         } else if (!Services.Theme.applying && !Services.Wallpaper.applying) {
             Services.Theme.clearPreview();
             Services.Wallpaper.clearPreview();
@@ -103,7 +145,7 @@ PanelWindow {
         }
         function onCatalogChanged() {
             if (root.visible && root.mode === "themes")
-                root.previewSelection();
+                root.syncSelection();
         }
     }
     Connections {
@@ -118,7 +160,7 @@ PanelWindow {
         }
         function onCatalogChanged() {
             if (root.visible && root.mode === "wallpapers")
-                root.previewSelection();
+                root.syncSelection();
         }
     }
 
@@ -148,11 +190,11 @@ PanelWindow {
 
         Column {
             anchors.left: parent.left
-            anchors.leftMargin: 38
+            anchors.leftMargin: root.navigationGutter
             anchors.top: parent.top
-            anchors.topMargin: 40
-            spacing: 16
-            width: 150
+            anchors.topMargin: root.short ? 20 : 40
+            spacing: root.short ? 10 : 16
+            width: root.navigationWidth
 
             Text {
                 color: Services.Theme.accent
@@ -170,12 +212,12 @@ PanelWindow {
             Rectangle {
                 color: Services.Theme.border
                 height: 1
-                width: 132
+                width: root.navigationItemWidth
             }
 
             Item {
-                height: 48
-                width: 132
+                height: root.short ? 40 : 48
+                width: root.navigationItemWidth
                 Rectangle {
                     anchors.fill: parent
                     border.color: root.mode === "themes" ? Services.Theme.accent : "transparent"
@@ -201,8 +243,8 @@ PanelWindow {
                 }
             }
             Item {
-                height: 48
-                width: 132
+                height: root.short ? 40 : 48
+                width: root.navigationItemWidth
                 Rectangle {
                     anchors.fill: parent
                     border.color: root.mode === "wallpapers" ? Services.Theme.accent : "transparent"
@@ -230,20 +272,22 @@ PanelWindow {
         }
 
         Item {
-            anchors.bottom: filmstrip.top
-            anchors.bottomMargin: 24
+            id: preview
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: root.footerHeight + root.previewFooterGap
             anchors.left: parent.left
-            anchors.leftMargin: 220
+            anchors.leftMargin: root.contentLeft
             anchors.right: parent.right
-            anchors.rightMargin: 52
+            anchors.rightMargin: root.outerGutter
             anchors.top: parent.top
-            anchors.topMargin: 42
+            anchors.topMargin: root.previewTopGutter
 
             Rectangle {
                 anchors.fill: parent
                 border.color: Services.Theme.border
                 border.width: 1
                 color: Services.Theme.surface
+                clip: true
                 radius: Math.max(5, Services.Theme.radius * 0.7)
 
                 Image {
@@ -255,21 +299,24 @@ PanelWindow {
                 }
                 Rectangle {
                     anchors.fill: parent
-                    color: "#26000000"
+                    color: Qt.rgba(Services.Theme.background.r, Services.Theme.background.g, Services.Theme.background.b, 0.18)
                 }
                 Rectangle {
+                    id: metadataBackplate
                     anchors.bottom: parent.bottom
                     anchors.left: parent.left
-                    anchors.margins: 24
-                    color: Qt.rgba(Services.Theme.background.r, Services.Theme.background.g, Services.Theme.background.b, 0.82)
-                    height: 86
+                    anchors.margins: root.metadataInset
+                    border.color: Services.Theme.border
+                    border.width: 1
+                    color: Qt.rgba(Services.Theme.surface.r, Services.Theme.surface.g, Services.Theme.surface.b, 0.94)
+                    height: root.metadataHeight
                     radius: 4
-                    width: 330
+                    width: Math.max(0, Math.min(330, parent.width - root.metadataInset * 2))
 
                     Column {
                         anchors.fill: parent
-                        anchors.margins: 14
-                        spacing: 5
+                        anchors.margins: root.short ? 10 : 14
+                        spacing: root.short ? 3 : 5
                         Text {
                             color: Services.Theme.muted
                             font.family: Services.Theme.monoFamily
@@ -279,11 +326,14 @@ PanelWindow {
                         }
                         Text {
                             color: Services.Theme.text
+                            elide: Text.ElideRight
                             font.family: Services.Theme.fontFamily
-                            font.pixelSize: 22
+                            font.pixelSize: root.short ? 18 : (root.compact ? 20 : 22)
                             font.weight: Font.DemiBold
+                            maximumLineCount: 1
                             text: root.selectedTitle
                             textFormat: Text.PlainText
+                            width: parent.width
                         }
                         Text {
                             color: Services.Theme.accent
@@ -300,16 +350,16 @@ PanelWindow {
         Flickable {
             id: filmstrip
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 36
+            anchors.bottomMargin: root.filmstripBottomGutter
             anchors.left: parent.left
-            anchors.leftMargin: 220
-            anchors.right: actionColumn.left
-            anchors.rightMargin: 28
+            anchors.leftMargin: root.filmstripLeft
+            anchors.right: actionBackplate.left
+            anchors.rightMargin: root.filmActionGap
             boundsBehavior: Flickable.StopAtBounds
             clip: true
             contentHeight: stripRow.height
             contentWidth: stripRow.width
-            height: 116
+            height: root.filmstripHeight
 
             Row {
                 id: stripRow
@@ -322,8 +372,8 @@ PanelWindow {
                         required property int index
                         required property var modelData
                         readonly property var wallpaper: root.mode === "themes" ? modelData.wallpaper : modelData
-                        height: 108
-                        width: root.selectedIndex === index ? 176 : 136
+                        height: root.short ? 76 : (root.compact ? 92 : 108)
+                        width: root.selectedIndex === index ? (root.short ? 128 : (root.compact ? 152 : 176)) : (root.short ? 100 : (root.compact ? 118 : 136))
 
                         Behavior on width {
                             NumberAnimation {
@@ -360,7 +410,14 @@ PanelWindow {
                             }
                             Rectangle {
                                 anchors.fill: parent
-                                color: "#59000000"
+                                color: Qt.rgba(Services.Theme.background.r, Services.Theme.background.g, Services.Theme.background.b, 0.3)
+                            }
+                            Rectangle {
+                                anchors.bottom: parent.bottom
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                color: Qt.rgba(Services.Theme.surface.r, Services.Theme.surface.g, Services.Theme.surface.b, 0.88)
+                                height: root.short ? 26 : 30
                             }
                             Text {
                                 anchors.bottom: parent.bottom
@@ -397,68 +454,85 @@ PanelWindow {
             text: "← / →  BROWSE    DRAG STRIP"
         }
 
-        Column {
-            id: actionColumn
+        Rectangle {
+            id: actionBackplate
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 38
+            anchors.bottomMargin: root.actionPanelBottomMargin
             anchors.right: parent.right
-            anchors.rightMargin: 52
-            spacing: 8
-            width: 150
+            anchors.rightMargin: root.actionPanelRightMargin
+            border.color: Services.Theme.border
+            border.width: 1
+            color: Qt.rgba(Services.Theme.surface.r, Services.Theme.surface.g, Services.Theme.surface.b, 0.94)
+            height: actionColumn.height + root.actionPadding * 2
+            radius: 4
+            width: root.actionWidth
 
-            Text {
-                color: Services.Theme.error
-                font.family: Services.Theme.monoFamily
-                font.pixelSize: 8
-                text: root.applyError
-                textFormat: Text.PlainText
-                visible: root.applyError.length > 0
-                width: parent.width
-                wrapMode: Text.Wrap
-            }
+            Column {
+                id: actionColumn
+                anchors.left: parent.left
+                anchors.leftMargin: root.actionPadding
+                anchors.right: parent.right
+                anchors.rightMargin: root.actionPadding
+                anchors.top: parent.top
+                anchors.topMargin: root.actionPadding
+                spacing: root.short ? 6 : 8
 
-            Rectangle {
-                color: applyMouse.pressed ? Services.Theme.surfaceAlt : Services.Theme.accent
-                height: 46
-                opacity: root.applyInFlight ? 0.5 : 1
-                radius: 4
-                width: parent.width
                 Text {
-                    anchors.centerIn: parent
-                    color: Services.Theme.background
-                    font.family: Services.Theme.monoFamily
-                    font.pixelSize: 9
-                    font.weight: Font.DemiBold
-                    text: root.applyInFlight ? "APPLYING" : "COMMIT"
-                }
-                MouseArea {
-                    id: applyMouse
-                    anchors.fill: parent
-                    enabled: !root.applyInFlight
-                    onClicked: root.commit()
-                }
-            }
-            Rectangle {
-                border.color: Services.Theme.border
-                border.width: 1
-                color: cancelMouse.containsMouse ? Services.Theme.surfaceAlt : "transparent"
-                height: 38
-                opacity: root.applyInFlight ? 0.45 : 1
-                radius: 4
-                width: parent.width
-                Text {
-                    anchors.centerIn: parent
-                    color: Services.Theme.muted
+                    color: Services.Theme.error
+                    elide: Text.ElideRight
                     font.family: Services.Theme.monoFamily
                     font.pixelSize: 8
-                    text: "ESC / CANCEL"
+                    maximumLineCount: root.short ? 2 : 3
+                    text: root.applyError
+                    textFormat: Text.PlainText
+                    visible: root.applyError.length > 0
+                    width: parent.width
+                    wrapMode: Text.Wrap
                 }
-                MouseArea {
-                    id: cancelMouse
-                    anchors.fill: parent
-                    enabled: !root.applyInFlight
-                    hoverEnabled: true
-                    onClicked: root.cancel()
+
+                Rectangle {
+                    color: applyMouse.pressed ? Services.Theme.surfaceAlt : Services.Theme.accent
+                    height: root.short ? 38 : 46
+                    opacity: root.applyInFlight ? 0.5 : 1
+                    radius: 4
+                    width: parent.width
+                    Text {
+                        anchors.centerIn: parent
+                        color: Services.Theme.background
+                        font.family: Services.Theme.monoFamily
+                        font.pixelSize: 9
+                        font.weight: Font.DemiBold
+                        text: root.applyInFlight ? "APPLYING" : "COMMIT"
+                    }
+                    MouseArea {
+                        id: applyMouse
+                        anchors.fill: parent
+                        enabled: !root.applyInFlight
+                        onClicked: root.commit()
+                    }
+                }
+                Rectangle {
+                    border.color: Services.Theme.border
+                    border.width: 1
+                    color: cancelMouse.containsMouse ? Services.Theme.surfaceAlt : "transparent"
+                    height: root.short ? 32 : 38
+                    opacity: root.applyInFlight ? 0.45 : 1
+                    radius: 4
+                    width: parent.width
+                    Text {
+                        anchors.centerIn: parent
+                        color: Services.Theme.muted
+                        font.family: Services.Theme.monoFamily
+                        font.pixelSize: 8
+                        text: "ESC / CANCEL"
+                    }
+                    MouseArea {
+                        id: cancelMouse
+                        anchors.fill: parent
+                        enabled: !root.applyInFlight
+                        hoverEnabled: true
+                        onClicked: root.cancel()
+                    }
                 }
             }
         }

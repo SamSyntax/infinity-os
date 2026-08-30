@@ -1,17 +1,23 @@
+pragma ComponentBehavior: Bound
+
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
+import "../components" as Components
 import "../services" as Services
 
 PanelWindow {
     id: root
 
+    property string layoutVariant: Quickshell.env("INFINITY_NAVBAR_LAYOUT") === "full" ? "full" : "islands"
+    readonly property bool fullWidth: layoutVariant === "full"
+    readonly property bool compact: width < Services.RailGeometry.compactBreakpoint
+    readonly property bool narrow: width < Services.RailGeometry.narrowBreakpoint
+
     signal appearanceRequested
     signal controlRequested
     signal launcherRequested
-
-    readonly property bool compact: width < 1500
 
     anchors {
         left: true
@@ -19,12 +25,12 @@ PanelWindow {
         top: true
     }
     color: "transparent"
-    exclusiveZone: visible ? 62 : 0
-    implicitHeight: 52
+    exclusiveZone: visible ? Services.RailGeometry.exclusiveZone : 0
+    implicitHeight: Services.RailGeometry.surfaceHeight
     margins {
-        left: 10
-        right: 10
-        top: 8
+        left: Services.RailGeometry.outerGap
+        right: Services.RailGeometry.outerGap
+        top: Services.RailGeometry.topGap
     }
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "infinity-navbar"
@@ -34,40 +40,78 @@ PanelWindow {
         command: ["/usr/bin/loginctl", "lock-session"]
     }
 
+    Components.EnergyConnector {
+        id: leftConnector
+
+        height: Services.RailGeometry.dividerHeight
+        visible: !root.fullWidth && width > 0
+        width: Math.max(0, centerIsland.x - leftIsland.x - leftIsland.width)
+        x: leftIsland.x + leftIsland.width
+        y: (root.height - height) / 2
+    }
+
+    Components.EnergyConnector {
+        id: rightConnector
+
+        height: Services.RailGeometry.dividerHeight
+        visible: !root.fullWidth && width > 0
+        width: Math.max(0, rightIsland.x - centerIsland.x - centerIsland.width)
+        x: centerIsland.x + centerIsland.width
+        y: (root.height - height) / 2
+    }
+
     Rectangle {
+        id: fullSurface
+
         anchors.fill: parent
         border.color: Services.Theme.border
         border.width: 1
         color: Qt.rgba(Services.Theme.surface.r, Services.Theme.surface.g, Services.Theme.surface.b, Services.Theme.panelOpacity)
-        radius: Math.max(5, Services.Theme.radius * 0.65)
+        radius: Services.RailGeometry.surfaceRadius
+        visible: root.fullWidth
+    }
+
+    Rectangle {
+        id: leftIsland
+
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        border.color: Services.Theme.border
+        border.width: root.fullWidth ? 0 : 1
+        color: root.fullWidth ? "transparent" : Qt.rgba(Services.Theme.surface.r, Services.Theme.surface.g, Services.Theme.surface.b, Services.Theme.panelOpacity)
+        height: Services.RailGeometry.surfaceHeight
+        radius: Services.RailGeometry.surfaceRadius
+        width: leftContent.childrenRect.width + Services.RailGeometry.horizontalPadding * 2
 
         Rectangle {
             anchors.bottom: parent.bottom
             anchors.left: parent.left
-            anchors.leftMargin: 20
+            anchors.leftMargin: Services.RailGeometry.accentRuleInset
             color: Services.Theme.accent
             height: 1
             opacity: 0.8
-            width: 132
+            width: Math.min(Services.RailGeometry.accentRuleWidth, parent.width - Services.RailGeometry.accentRuleInset * 2)
         }
 
         Row {
+            id: leftContent
+
             anchors.left: parent.left
-            anchors.leftMargin: 12
+            anchors.leftMargin: Services.RailGeometry.horizontalPadding
             anchors.verticalCenter: parent.verticalCenter
-            height: parent.height
-            spacing: 6
+            height: Services.RailGeometry.controlHeight
+            spacing: Services.RailGeometry.sectionSpacing
 
             Item {
-                height: parent.height
-                width: 78
+                height: Services.RailGeometry.controlHeight
+                width: Services.RailGeometry.brandWidth
 
                 Text {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     color: Services.Theme.accent
                     font.family: Services.Theme.fontFamily
-                    font.pixelSize: 20
+                    font.pixelSize: Services.RailGeometry.brandMarkFontSize
                     text: "∞"
                 }
                 Text {
@@ -77,7 +121,7 @@ PanelWindow {
                     color: Services.Theme.text
                     font.family: Services.Theme.monoFamily
                     font.letterSpacing: 1.5
-                    font.pixelSize: 8
+                    font.pixelSize: Services.RailGeometry.brandLabelFontSize
                     text: "INFINITY"
                 }
             }
@@ -85,102 +129,44 @@ PanelWindow {
             Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 color: Services.Theme.border
-                height: 22
+                height: Services.RailGeometry.dividerHeight
                 width: 1
             }
 
-            Item {
-                height: parent.height
-                width: 58
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: openMouse.containsMouse ? Services.Theme.surfaceAlt : "transparent"
-                    opacity: openMouse.pressed ? 0.65 : 1
-                    radius: 4
-                    Behavior on color {
-                        ColorAnimation {
-                            duration: Services.Theme.duration
-                        }
-                    }
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: Services.Theme.duration
-                        }
-                    }
-                }
-                Text {
-                    anchors.centerIn: parent
-                    color: Services.Theme.text
-                    font.family: Services.Theme.monoFamily
-                    font.letterSpacing: 1.2
-                    font.pixelSize: 9
-                    text: "OPEN"
-                }
-                MouseArea {
-                    id: openMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: root.launcherRequested()
-                }
+            Components.RailButton {
+                index: "01"
+                label: "OPEN"
+                onClicked: root.launcherRequested()
             }
-
-            Item {
-                height: parent.height
-                width: 62
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: fieldMouse.containsMouse ? Services.Theme.surfaceAlt : "transparent"
-                    opacity: fieldMouse.pressed ? 0.65 : 1
-                    radius: 4
-                    Behavior on color {
-                        ColorAnimation {
-                            duration: Services.Theme.duration
-                        }
-                    }
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: Services.Theme.duration
-                        }
-                    }
-                }
-                Text {
-                    anchors.centerIn: parent
-                    color: Services.Theme.text
-                    font.family: Services.Theme.monoFamily
-                    font.letterSpacing: 1.2
-                    font.pixelSize: 9
-                    text: "FIELD"
-                }
-                MouseArea {
-                    id: fieldMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: root.appearanceRequested()
-                }
+            Components.RailButton {
+                index: "02"
+                label: "FIELD"
+                onClicked: root.appearanceRequested()
             }
 
             Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 color: Services.Theme.border
-                height: 22
+                height: Services.RailGeometry.dividerHeight
                 width: 1
             }
 
             Row {
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 3
+                height: Services.RailGeometry.controlHeight
+                spacing: Services.RailGeometry.workspaceSpacing
 
                 Repeater {
                     model: Services.Workspaces.workspaceIds
 
                     Item {
+                        id: workspaceItem
+
                         required property int modelData
                         readonly property bool active: Services.Workspaces.activeWorkspaceIdForScreen(root.screen) === modelData
                         readonly property bool occupied: Services.Workspaces.occupied(modelData)
-                        height: 30
-                        width: active ? 32 : 22
+                        height: Services.RailGeometry.controlHeight
+                        width: workspaceItem.active ? (root.narrow ? Services.RailGeometry.workspaceNarrowActiveWidth : Services.RailGeometry.workspaceActiveWidth) : (root.narrow ? Services.RailGeometry.workspaceNarrowWidth : Services.RailGeometry.workspaceWidth)
 
                         Behavior on width {
                             NumberAnimation {
@@ -191,11 +177,12 @@ PanelWindow {
 
                         Rectangle {
                             anchors.centerIn: parent
-                            color: active ? Services.Theme.accent : (occupied ? Services.Theme.text : Services.Theme.muted)
-                            height: active ? 4 : 3
-                            opacity: active ? 1 : (occupied ? 0.55 : 0.22)
+                            color: workspaceItem.active ? Services.Theme.accent : (workspaceItem.occupied ? Services.Theme.text : Services.Theme.muted)
+                            height: workspaceItem.active ? 4 : 3
+                            opacity: workspaceItem.active ? 1 : (workspaceItem.occupied ? 0.55 : 0.22)
                             radius: 2
-                            width: active ? 24 : 4
+                            width: workspaceItem.active ? 22 : 4
+
                             Behavior on opacity {
                                 NumberAnimation {
                                     duration: Services.Theme.duration
@@ -211,11 +198,12 @@ PanelWindow {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.top: parent.top
-                            color: active ? Services.Theme.accent : Services.Theme.muted
+                            color: workspaceItem.active ? Services.Theme.accent : Services.Theme.muted
                             font.family: Services.Theme.monoFamily
-                            font.pixelSize: 7
-                            opacity: workspaceMouse.containsMouse || active ? 0.9 : 0
-                            text: modelData
+                            font.pixelSize: Services.RailGeometry.workspaceFontSize
+                            opacity: workspaceMouse.containsMouse || workspaceItem.active ? 0.9 : 0
+                            text: workspaceItem.modelData
+
                             Behavior on opacity {
                                 NumberAnimation {
                                     duration: Services.Theme.duration
@@ -224,55 +212,88 @@ PanelWindow {
                         }
                         MouseArea {
                             id: workspaceMouse
+
                             anchors.fill: parent
                             hoverEnabled: true
-                            onClicked: Services.Workspaces.activate(modelData)
+                            onClicked: Services.Workspaces.activate(workspaceItem.modelData)
                         }
                     }
                 }
             }
         }
+    }
+
+    Rectangle {
+        id: centerIsland
+
+        anchors.centerIn: parent
+        border.color: Services.Theme.border
+        border.width: root.fullWidth ? 0 : 1
+        color: root.fullWidth ? "transparent" : Qt.rgba(Services.Theme.surface.r, Services.Theme.surface.g, Services.Theme.surface.b, Services.Theme.panelOpacity)
+        height: Services.RailGeometry.surfaceHeight
+        radius: Services.RailGeometry.surfaceRadius
+        width: centerContent.childrenRect.width + Services.RailGeometry.horizontalPadding * 2
 
         Row {
+            id: centerContent
+
             anchors.centerIn: parent
-            spacing: 12
+            height: Services.RailGeometry.controlHeight
+            spacing: Services.RailGeometry.sectionSpacing
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 color: Services.Theme.muted
                 font.family: Services.Theme.monoFamily
                 font.letterSpacing: 1
-                font.pixelSize: 8
+                font.pixelSize: Services.RailGeometry.telemetryFontSize
                 text: Services.Time.date.toUpperCase()
+                visible: !root.narrow
             }
             Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 color: Services.Theme.accent
-                height: 18
+                height: Services.RailGeometry.dividerHeight
+                visible: !root.narrow
                 width: 1
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 color: Services.Theme.text
                 font.family: Services.Theme.monoFamily
-                font.pixelSize: 13
+                font.pixelSize: Services.RailGeometry.clockFontSize
                 font.weight: Font.DemiBold
                 text: Services.Time.clock
             }
         }
+    }
+
+    Rectangle {
+        id: rightIsland
+
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        border.color: Services.Theme.border
+        border.width: root.fullWidth ? 0 : 1
+        color: root.fullWidth ? "transparent" : Qt.rgba(Services.Theme.surface.r, Services.Theme.surface.g, Services.Theme.surface.b, Services.Theme.panelOpacity)
+        height: Services.RailGeometry.surfaceHeight
+        radius: Services.RailGeometry.surfaceRadius
+        width: rightContent.childrenRect.width + Services.RailGeometry.horizontalPadding * 2
 
         Row {
+            id: rightContent
+
             anchors.right: parent.right
-            anchors.rightMargin: 10
+            anchors.rightMargin: Services.RailGeometry.horizontalPadding
             anchors.verticalCenter: parent.verticalCenter
-            height: parent.height
-            spacing: 4
+            height: Services.RailGeometry.controlHeight
+            spacing: Services.RailGeometry.sectionSpacing
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 color: Services.Theme.muted
                 font.family: Services.Theme.monoFamily
-                font.pixelSize: 8
+                font.pixelSize: Services.RailGeometry.telemetryFontSize
                 text: Services.SystemResources.cpuLabel
                 visible: !root.compact
             }
@@ -280,14 +301,14 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 color: Services.Theme.muted
                 font.family: Services.Theme.monoFamily
-                font.pixelSize: 8
+                font.pixelSize: Services.RailGeometry.telemetryFontSize
                 text: Services.SystemResources.memoryLabel
                 visible: !root.compact
             }
             Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 color: Services.Theme.border
-                height: 22
+                height: Services.RailGeometry.dividerHeight
                 visible: !root.compact
                 width: 1
             }
@@ -296,83 +317,35 @@ PanelWindow {
                 color: Services.Network.connected ? Services.Theme.text : Services.Theme.muted
                 elide: Text.ElideRight
                 font.family: Services.Theme.monoFamily
-                font.pixelSize: 8
+                font.pixelSize: Services.RailGeometry.telemetryFontSize
                 maximumLineCount: 1
                 text: Services.Network.label
                 textFormat: Text.PlainText
-                width: root.compact ? 52 : 92
+                width: Math.min(implicitWidth, root.narrow ? Services.RailGeometry.networkNarrowMaxWidth : Services.RailGeometry.networkMaxWidth)
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 color: Services.Power.hasBattery && Services.Power.percentage < 20 ? Services.Theme.warning : Services.Theme.text
                 font.family: Services.Theme.monoFamily
-                font.pixelSize: 8
+                font.pixelSize: Services.RailGeometry.telemetryFontSize
                 text: Services.Power.label
             }
             Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 color: Services.Theme.border
-                height: 22
+                height: Services.RailGeometry.dividerHeight
                 width: 1
             }
-            Item {
-                height: parent.height
-                width: 54
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: stateMouse.containsMouse ? Services.Theme.surfaceAlt : "transparent"
-                    opacity: stateMouse.pressed ? 0.65 : 1
-                    radius: 4
-                    Behavior on color {
-                        ColorAnimation {
-                            duration: Services.Theme.duration
-                        }
-                    }
-                }
-                Text {
-                    anchors.centerIn: parent
-                    color: Services.Theme.text
-                    font.family: Services.Theme.monoFamily
-                    font.pixelSize: 8
-                    text: "STATE"
-                }
-                MouseArea {
-                    id: stateMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onClicked: root.controlRequested()
-                }
+            Components.RailButton {
+                index: "03"
+                label: "STATE"
+                onClicked: root.controlRequested()
             }
-            Item {
-                height: parent.height
-                width: 46
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: lockMouse.containsMouse ? Services.Theme.surfaceAlt : "transparent"
-                    opacity: lockMouse.pressed ? 0.65 : 1
-                    radius: 4
-                    Behavior on color {
-                        ColorAnimation {
-                            duration: Services.Theme.duration
-                        }
-                    }
-                }
-                Text {
-                    anchors.centerIn: parent
-                    color: Services.Theme.text
-                    font.family: Services.Theme.monoFamily
-                    font.pixelSize: 8
-                    text: "LOCK"
-                }
-                MouseArea {
-                    id: lockMouse
-                    anchors.fill: parent
-                    enabled: !lockProcess.running
-                    hoverEnabled: true
-                    onClicked: lockProcess.running = true
-                }
+            Components.RailButton {
+                enabled: !lockProcess.running
+                index: "04"
+                label: "LOCK"
+                onClicked: lockProcess.running = true
             }
         }
     }

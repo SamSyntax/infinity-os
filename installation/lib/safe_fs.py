@@ -55,7 +55,8 @@ def _open_parent(root: Path, destination: Path, owner=None):
     parts = relative.parts[:-1]
     fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
-        for part in parts:
+        for index, part in enumerate(parts):
+            current_parent = root.joinpath(*parts[: index + 1])
             try:
                 os.mkdir(part, mode=0o755, dir_fd=fd)
                 if owner is not None:
@@ -64,7 +65,20 @@ def _open_parent(root: Path, destination: Path, owner=None):
                 metadata = os.stat(part, dir_fd=fd, follow_symlinks=False)
                 if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
                     raise ValueError(f"refusing unsafe destination parent: {destination}")
-            next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            except PermissionError as error:
+                raise PermissionError(
+                    error.errno,
+                    f"cannot create destination parent {current_parent}; restore its ownership for the target user and ensure ownership and write/execute permissions",
+                    str(current_parent),
+                ) from error
+            try:
+                next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            except PermissionError as error:
+                raise PermissionError(
+                    error.errno,
+                    f"cannot access destination parent {current_parent}; restore its ownership for the target user and ensure ownership and write/execute permissions",
+                    str(current_parent),
+                ) from error
             os.close(fd)
             fd = next_fd
         return fd, relative.name

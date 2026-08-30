@@ -1,4 +1,4 @@
-mainMod = "SUPER"
+mainMod = "ALT"
 
 o.replace("SUPER + RETURN", "Terminal", "ghostty")
 o.replace("SUPER + SHIFT + F", "File manager", "uwsm app -- nautilus --new-window")
