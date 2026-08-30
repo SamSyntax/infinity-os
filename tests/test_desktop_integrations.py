@@ -87,6 +87,7 @@ def main():
     require("implicitWidth: 560" not in launcher and "implicitHeight: 430" not in launcher, "launcher retains fixed 560x430 geometry")
     require(launcher.count("Components.ArchiveBlackHole {") == 1, "launcher idle state must use one archive black hole")
     require("Components.EnergyConnector {" not in launcher, "launcher metadata connector must remain static")
+    require('!root.hasMatches ? "TYPE TO REVISE QUERY"' in launcher, "launcher no-results footer suggests an unavailable action")
 
     appearance = (REPO / "desktop/quickshell/surfaces/AppearanceSurface.qml").read_text(encoding="utf-8")
     surface_module = (REPO / "desktop/quickshell/surfaces/qmldir").read_text(encoding="utf-8")

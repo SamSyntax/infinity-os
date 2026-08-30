@@ -1,10 +1,42 @@
 {
+  "model_fallback": false,
+  "agents": {
+    "oracle": {
+      "model": "openai/gpt-5.6-sol",
+      "fallback_models": [
+        "openai/gpt-5.6-sol"
+      ]
+    },
+    "librarian": {
+      "model": "openai/gpt-5.6-sol",
+      "fallback_models": [
+        "openai/gpt-5.6-sol"
+      ]
+    },
+    "explore": {
+      "model": "openai/gpt-5.6-sol",
+      "fallback_models": [
+        "openai/gpt-5.6-sol"
+      ]
+    }
+  },
   "categories": {
     "visual-engineering": {
       "model": "openai/gpt-5.6-sol",
       "fallback_models": [
         "openai/gpt-5.6-sol"
       ]
+    },
+    "unspecified-high": {
+      "model": "openai/gpt-5.6-sol",
+      "fallback_models": [
+        "openai/gpt-5.6-sol"
+      ]
     }
+  },
+  "git_master": {
+    "commit_footer": false,
+    "include_co_authored_by": false,
+    "git_env_prefix": "GIT_MASTER=1"
   }
 }

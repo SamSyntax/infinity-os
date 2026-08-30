@@ -570,7 +570,7 @@ PopupWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 font.letterSpacing: root.microLetterSpacing
                 font.pixelSize: root.microFontSize
-                text: root.idle ? (root.compact ? "TYPE TO FILTER" : "TYPE TO FILTER THE LOCAL INDEX") : (root.compact ? "UP / DOWN   ENTER" : "UP / DOWN SELECT   ENTER OPEN")
+                text: root.idle ? (root.compact ? "TYPE TO FILTER" : "TYPE TO FILTER THE LOCAL INDEX") : (!root.hasMatches ? "TYPE TO REVISE QUERY" : (root.compact ? "UP / DOWN   ENTER" : "UP / DOWN SELECT   ENTER OPEN"))
             }
             Components.FolioLabel {
                 anchors.right: parent.right
