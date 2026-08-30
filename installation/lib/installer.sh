@@ -31,6 +31,8 @@ Stages:
 Apply-capable stages:
   preflight,packages,themes,deploy,validate,preview
 
+Confirmed packages/preview runs request sudo automatically when needed.
+
 No disk partitioning is performed.
 USAGE
 }
@@ -38,6 +40,46 @@ USAGE
 infinity_die() {
   printf 'infinity install: %s\n' "$1" >&2
   exit 1
+}
+
+infinity_effective_uid() {
+  printf '%s\n' "${EUID:-$(id -u)}"
+}
+
+infinity_exec_sudo() {
+  [[ -x /usr/bin/sudo ]] || infinity_die "this stage needs root privileges, but /usr/bin/sudo is unavailable; install sudo or run the reviewed command as root"
+  exec /usr/bin/sudo -- "$@"
+}
+
+infinity_exec_as_target_user() {
+  local user=$1
+  shift
+  [[ -x /usr/bin/sudo ]] || infinity_die "repository validation must run as target user '$user', but /usr/bin/sudo is unavailable"
+  /usr/bin/sudo -u "$user" -- "$@"
+}
+
+infinity_elevate_apply_if_required() {
+  local stage needs_root=0
+  for stage in "$@"; do
+    if [[ $stage == preview || $stage == packages ]]; then
+      needs_root=1
+      break
+    fi
+  done
+  [[ $needs_root == 1 ]] || return 0
+  [[ $(infinity_effective_uid) -ne 0 ]] || return 0
+
+  local elevated_args=(
+    "$INFINITY_REPO/install.sh"
+    --confirm
+    --target-root "$INFINITY_TARGET_ROOT"
+    --target-user "$INFINITY_TARGET_USER"
+  )
+  for stage in "$@"; do
+    elevated_args+=(--stage "$stage")
+  done
+  printf 'infinity install: stage requires root privileges; requesting sudo authentication\n' >&2
+  infinity_exec_sudo "${elevated_args[@]}"
 }
 
 infinity_has_stage() {
@@ -245,7 +287,11 @@ infinity_packages_preflight() {
 }
 
 infinity_prewrite_repository_validation() {
-  "$INFINITY_REPO/bin/infinity-validate"
+  if [[ $(infinity_effective_uid) -eq 0 && $INFINITY_TARGET_USER != root ]]; then
+    infinity_exec_as_target_user "$INFINITY_TARGET_USER" "$INFINITY_REPO/bin/infinity-validate"
+  else
+    "$INFINITY_REPO/bin/infinity-validate"
+  fi
 }
 
 infinity_prewrite_packages_validation() {
@@ -309,7 +355,7 @@ infinity_run_stage() {
       fi
       infinity_log "packages: installing official workstation package groups in one pacman transaction"
       if ! infinity_log_command infinity_install_packages; then
-        infinity_log "packages: pacman failed; package state may have changed, no package removal was attempted. Resolve pacman, then rerun: sudo ./install.sh --confirm --stage packages"
+        infinity_log "packages: pacman failed; package state may have changed, no package removal was attempted. Resolve pacman, then rerun: ./install.sh --confirm --stage packages"
         return 1
       fi
       infinity_log "packages: complete; graphics, AUR, services, boot, greeter, deploy, and theme actions were not run"
@@ -351,14 +397,13 @@ infinity_run_stage() {
       infinity_preview_preflight
       infinity_log "preview: installing official packages in one pacman transaction"
       if ! infinity_log_command infinity_install_preview_packages; then
-        infinity_log "preview: pacman failed; package state may have changed, no package removal was attempted. Resolve pacman, then rerun: sudo ./install.sh --confirm --stage preview --target-user $INFINITY_TARGET_USER"
+        infinity_log "preview: pacman failed; package state may have changed, no package removal was attempted. Resolve pacman, then rerun: ./install.sh --confirm --stage preview --target-user $INFINITY_TARGET_USER"
         return 1
       fi
       infinity_log "preview: deploying user-scoped configuration with backups"
-      infinity_log_command "$INFINITY_REPO/bin/infinity-deploy" --scope user --target-root "$INFINITY_TARGET_ROOT" --target-user "$INFINITY_TARGET_USER"
+      infinity_log_command infinity_exec_as_target_user "$INFINITY_TARGET_USER" "$INFINITY_REPO/bin/infinity-deploy" --scope user --target-root "$INFINITY_TARGET_ROOT" --target-user "$INFINITY_TARGET_USER"
       infinity_log "preview: applying Signal Archive theme"
-      infinity_log_command "$INFINITY_REPO/bin/infinity-theme" apply signal-archive --target-root "$INFINITY_TARGET_ROOT" --target-user "$INFINITY_TARGET_USER"
-      chown -R "$INFINITY_TARGET_USER:$INFINITY_TARGET_USER" "$INFINITY_TARGET_ROOT/home/$INFINITY_TARGET_USER/.config" "$INFINITY_TARGET_ROOT/home/$INFINITY_TARGET_USER/.local" 2>/dev/null || true
+      infinity_log_command infinity_exec_as_target_user "$INFINITY_TARGET_USER" "$INFINITY_REPO/bin/infinity-theme" apply signal-archive --target-root "$INFINITY_TARGET_ROOT" --target-user "$INFINITY_TARGET_USER"
       infinity_log "preview: if deploy/theme fails after packages install, rerun the same preview command after fixing the reported error; pacman packages may remain installed"
       infinity_preview_success
       ;;
@@ -407,6 +452,7 @@ infinity_installer_main() {
       [[ $stage == preview ]] && infinity_preview_preflight
       [[ $stage == packages ]] && infinity_packages_preflight
     done
+    infinity_elevate_apply_if_required "${selected[@]}" || return $?
   fi
 
   if [[ $INFINITY_DRY_RUN == 0 ]]; then

@@ -49,22 +49,24 @@ The plan writes nothing. It may read `/usr/bin/systemd-detect-virt --quiet` and 
 Apply on the live Arch system only:
 
 ```sh
-sudo ./install.sh --confirm --stage packages
+./install.sh --confirm --stage packages
 ```
+
+When this command is started by a normal user, the installer validates the live-root preflight and then asks for sudo authentication. It re-executes itself with canonical arguments before creating the system log or invoking pacman. Running the same reviewed command as root also remains supported.
 
 Safety and scope:
 
 1. The resolved target root must be `/`. This stage does not chroot and does not install into `/mnt`.
-2. The effective UID must be 0, normally from `sudo`.
+2. Apply runs with effective UID 0. A normal-user invocation requests that elevation through `/usr/bin/sudo`; plan mode never elevates.
 3. `/usr/bin/pacman` must exist and be executable. The installer does not use a `PATH`-resolved pacman.
-4. Package manifests, the complete package list, and the fixed pacman argv are validated before log creation or any target write. The full developer validator is not run as root because it executes repository tests; run `./bin/infinity-validate` as your normal user before invoking the installer with `sudo`.
-5. The only privileged command is exactly `/usr/bin/pacman -Syu --needed --noconfirm -- ...`.
+4. Package manifests, the complete package list, and the fixed pacman argv are validated before log creation or any target write. The full developer validator is not run by this stage; run `./bin/infinity-validate` as your normal user first.
+5. The package-changing command is exactly `/usr/bin/pacman -Syu --needed --noconfirm -- ...`.
 
 `-Syu` means: sync package databases (`-y`), upgrade the system as needed (`-u`), and install the requested packages (`-S`) in one transaction. This follows Arch’s rule that package installation should not happen against a partially upgraded system. `--needed` avoids reinstalling packages that are already current, `--noconfirm` is gated by the installer-level `--confirm`, and `--` ends pacman options before package names.
 
 Included official groups, merged in this order with first occurrence preserved: `base`, `hardware`, `wayland`, `desktop-shell`, `applications`. The selector deliberately never reads `graphics.official.txt` or `aur.txt` for this stage. Both `intel-ucode` and `amd-ucode` are removed from the hardware group first; then production detection adds at most one: none in a VM/container, `intel-ucode` on bare-metal GenuineIntel, `amd-ucode` on bare-metal AuthenticAMD. Unknown bare-metal vendors fail before log creation or pacman.
 
-Failure recovery: if pacman returns nonzero, the installer exits immediately after printing/logging that package state may have changed, no removal was attempted, and the recovery action is to resolve the pacman error and rerun `sudo ./install.sh --confirm --stage packages`.
+Failure recovery: if pacman returns nonzero, the installer exits immediately after printing/logging that package state may have changed, no removal was attempted, and the recovery action is to resolve the pacman error and rerun `./install.sh --confirm --stage packages`.
 
 ## Manual VM preview stage
 
@@ -81,8 +83,10 @@ The plan writes nothing. It names four actions: validate the repository, install
 Apply inside the VM only:
 
 ```sh
-sudo ./install.sh --confirm --stage preview --target-user sam
+./install.sh --confirm --stage preview --target-user sam
 ```
+
+The normal-user command performs live-root and target-account preflight checks, then asks for sudo authentication before validation, system logging, or package changes. In the elevated process, the repository validator, user deployment, and theme application explicitly run as `sam`; only the installer log and package transaction remain root-owned operations.
 
 What this writes:
 
@@ -95,7 +99,7 @@ What this writes:
 Safety boundaries:
 
 - `preview` apply only accepts the resolved target root `/`. It never installs packages into a chroot or arbitrary target root.
-- The effective UID must be 0, normally from `sudo`, because pacman and deployment need privileges.
+- The apply process must become UID 0 for the system log and pacman. A normal-user invocation requests this through `/usr/bin/sudo`; repository validation and user-home deployment then drop back to the target user.
 - The target user must exist, must not be UID 0, and its passwd home must be exactly `/home/<user>`.
 - It does not enable greetd, edit bootloader files, partition disks, enable services, start Hyprland automatically, configure autologin, or fake locking.
 
@@ -111,4 +115,4 @@ Rerun and recovery:
 
 - Rerunning the same preview command is intended to be safe for repository-managed user files; changed existing files are backed up again before replacement.
 - If pacman succeeds but later deployment or theme application fails, the installed packages may remain. Fix the actionable error, then rerun the preview command. The installer does not automatically remove packages because doing so could remove packages the user also wanted.
-- This remains a preview, not the full Infinity installer. Default `sudo ./install.sh --confirm` still fails because unrelated stages remain plan-only.
+- This remains a preview, not the full Infinity installer. Default `./install.sh --confirm` still fails before elevation because unrelated stages remain plan-only.

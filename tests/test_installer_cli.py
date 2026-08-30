@@ -150,6 +150,100 @@ def main():
     require(unsafe_packages_validation.returncode != 0, "unsafe cached package argv was accepted")
     require("invalid package token" in unsafe_packages_validation.stderr, "unsafe cached package argv error was unclear")
 
+    elevation_script = r'''
+source "$1"
+infinity_effective_uid() { printf '1000\n'; }
+infinity_preview_preflight() { printf 'PREFLIGHT\n'; }
+infinity_exec_sudo() {
+  printf 'SUDO\n'
+  printf '%s\n' "$@"
+  return 73
+}
+infinity_compute_preview_argv() { printf 'PRIVILEGED-WORK-REACHED\n'; return 99; }
+infinity_installer_main --confirm --target-root / --target-user tester --stage preview
+'''
+    elevation = subprocess.run(
+        ["/usr/bin/bash", "-c", elevation_script, "bash", str(INSTALLER_LIB)],
+        cwd=REPO,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    require(elevation.returncode == 73, f"preview did not return the elevation result:\n{elevation.stdout}{elevation.stderr}")
+    require(
+        elevation.stdout.splitlines()
+        == [
+            "PREFLIGHT",
+            "SUDO",
+            str(INSTALLER),
+            "--confirm",
+            "--target-root",
+            "/",
+            "--target-user",
+            "tester",
+            "--stage",
+            "preview",
+        ],
+        f"preview elevation did not preserve canonical arguments:\n{elevation.stdout}",
+    )
+    require("PRIVILEGED-WORK-REACHED" not in elevation.stdout, "preview continued into privileged work after requesting elevation")
+
+    validation_script = r'''
+source "$1"
+INFINITY_REPO=$PWD
+INFINITY_TARGET_USER=tester
+infinity_effective_uid() { printf '0\n'; }
+infinity_exec_as_target_user() {
+  printf '%s\n' "$@"
+}
+infinity_prewrite_repository_validation
+'''
+    validation = subprocess.run(
+        ["/usr/bin/bash", "-c", validation_script, "bash", str(INSTALLER_LIB)],
+        cwd=REPO,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    require(validation.returncode == 0, validation.stdout + validation.stderr)
+    require(
+        validation.stdout.splitlines() == ["tester", str(REPO / "bin/infinity-validate")],
+        f"elevated preview validation did not drop to the target user:\n{validation.stdout}",
+    )
+
+    preview_user_commands_script = r'''
+source "$1"
+INFINITY_REPO=$PWD
+INFINITY_TARGET_ROOT=/
+INFINITY_TARGET_USER=tester
+INFINITY_DRY_RUN=0
+infinity_preview_preflight() { :; }
+infinity_log() { :; }
+infinity_log_command() {
+  printf 'COMMAND\n'
+  printf '%s\n' "$@"
+}
+infinity_preview_success() { :; }
+infinity_run_stage preview
+'''
+    preview_user_commands = subprocess.run(
+        ["/usr/bin/bash", "-c", preview_user_commands_script, "bash", str(INSTALLER_LIB)],
+        cwd=REPO,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    require(preview_user_commands.returncode == 0, preview_user_commands.stdout + preview_user_commands.stderr)
+    expected_user_prefix = ["COMMAND", "infinity_exec_as_target_user", "tester"]
+    command_groups = preview_user_commands.stdout.split("COMMAND\n")[1:]
+    require(len(command_groups) == 3, f"preview did not emit package, deploy, and theme commands:\n{preview_user_commands.stdout}")
+    for group in command_groups[1:]:
+        require(
+            ["COMMAND", *group.splitlines()[:2]] == expected_user_prefix,
+            f"preview deploy/theme command did not drop to the target user:\n{group}",
+        )
+    require("chown" not in preview_user_commands.stdout, "preview retained broad recursive ownership repair")
+
     print("ok: installer help, plan, confirm rejection, and no-write behavior")
 
 

@@ -29,17 +29,17 @@ Use a virtual machine or sacrificial Arch installation. The current installer do
    ```sh
    ./install.sh --plan --stage packages
    ```
-   This writes nothing. It validates that package selection would happen before any target write, prints the detected CPU microcode decision, states that graphics drivers and AUR packages are deferred, and prints the exact `/usr/bin/pacman -Syu --needed --noconfirm -- ...` argv. Run the full `./bin/infinity-validate` command as your normal user before the later `sudo` command; the privileged package stage deliberately validates only its manifests and fixed pacman argv instead of executing repository tests as root.
+   This writes nothing. It validates that package selection would happen before any target write, prints the detected CPU microcode decision, states that graphics drivers and AUR packages are deferred, and prints the exact `/usr/bin/pacman -Syu --needed --noconfirm -- ...` argv. Run the full `./bin/infinity-validate` command as your normal user first; the package stage deliberately validates only its manifests and fixed pacman argv instead of executing repository tests as root.
 6. Apply the broader official package groups only on the live root of the Arch VM/system:
    ```sh
-   sudo ./install.sh --confirm --stage packages
+   ./install.sh --confirm --stage packages
    ```
-   `packages` is intentionally standalone like `preview`: it must be the only selected apply stage and only accepts the resolved target root `/`. It installs one official package transaction for `base`, `hardware`, `wayland`, `desktop-shell`, and `applications`, in that order. It removes both microcode packages from manifests first, then adds at most one production choice: no microcode in a VM/container, `intel-ucode` on bare-metal GenuineIntel, or `amd-ucode` on bare-metal AuthenticAMD. Unknown bare-metal CPU vendors fail before log creation or pacman. It does not install graphics/AUR packages, enable services, touch boot/greeter files, deploy dotfiles, or apply themes. If pacman exits nonzero, package state may have changed; no removal is attempted, so resolve pacman and rerun the same stage.
+   `packages` is intentionally standalone like `preview`: it must be the only selected apply stage and only accepts the resolved target root `/`. A normal-user invocation asks for sudo once, then re-executes with canonical arguments before logging or pacman. It installs one official package transaction for `base`, `hardware`, `wayland`, `desktop-shell`, and `applications`, in that order. It removes both microcode packages from manifests first, then adds at most one production choice: no microcode in a VM/container, `intel-ucode` on bare-metal GenuineIntel, or `amd-ucode` on bare-metal AuthenticAMD. Unknown bare-metal CPU vendors fail before log creation or pacman. It does not install graphics/AUR packages, enable services, touch boot/greeter files, deploy dotfiles, or apply themes. If pacman exits nonzero, package state may have changed; no removal is attempted, so resolve pacman and rerun the same stage.
 7. Apply a minimal manual Hyprland + Quickshell preview only inside the already bootable VM:
    ```sh
-   sudo ./install.sh --confirm --stage preview --target-user youruser
+   ./install.sh --confirm --stage preview --target-user youruser
    ```
-   This is not the full installer. It requires root because it runs one official `/usr/bin/pacman -Syu --needed --noconfirm -- ...` transaction, which performs a full system package database sync/upgrade before installing the preview packages. It only supports the live VM root `/`; it does not chroot into arbitrary target roots. Before pacman runs, the repository validator must pass. After packages install, the installer deploys only user-owned mappings under `/home/youruser` with the normal backup behavior, applies the `Signal Archive` theme, and prints exact TTY launch instructions. If user deployment or theme application later fails, packages may remain installed; fix the reported issue and rerun the same command.
+   This is not the full installer. It asks for sudo because it runs one official `/usr/bin/pacman -Syu --needed --noconfirm -- ...` transaction, which performs a full system package database sync/upgrade before installing the preview packages. It only supports the live VM root `/`; it does not chroot into arbitrary target roots. The elevated process runs the repository validator, deployment, and theme application as `youruser`; only system logging and pacman remain privileged. After packages install, the installer deploys only user-owned mappings under `/home/youruser` with the normal backup behavior, applies the `Signal Archive` theme, and prints exact TTY launch instructions. If user deployment or theme application later fails, packages may remain installed; fix the reported issue and rerun the same command.
 
    To launch, log out or switch to a TTY, log in as `youruser`, then run:
    ```sh
@@ -70,7 +70,7 @@ The installer never partitions disks. Plan mode is the safe development default.
 ./install.sh --plan --target-root /tmp --target-user testuser
 ./install.sh --plan --stage packages
 ./install.sh --plan --stage preview --target-user testuser
-sudo ./install.sh --confirm --stage packages
+./install.sh --confirm --stage packages
 ./install.sh --confirm --target-root /tmp/infinity-root --target-user testuser --stage preflight --stage themes --stage deploy --stage validate
 ./bin/infinity-validate
 ./bin/infinity-theme list
