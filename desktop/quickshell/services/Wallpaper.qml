@@ -33,7 +33,7 @@ Singleton {
         pendingWallpaperId = wallpaperId;
         applyError = "";
         applying = true;
-        applyProcess.command = [Theme.commandPath, "wallpaper", wallpaperId, "--target-user", Quickshell.env("USER")];
+        applyProcess.command = [Theme.commandPath, "wallpaper", wallpaperId, "--target-root", Theme.targetRoot, "--target-user", Quickshell.env("USER")];
         applyProcess.running = true;
     }
 

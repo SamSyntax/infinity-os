@@ -7,7 +7,7 @@ INFINITY_PYTHON=/usr/bin/python3
 INFINITY_LOG_RELATIVE=var/log/infinity-os/install.log
 
 INFINITY_STAGES=(preflight repositories packages base hardware wayland desktop-shell applications services boot greeter themes deploy validate preview)
-INFINITY_APPLY_STAGES=(preflight packages themes deploy validate preview)
+INFINITY_APPLY_STAGES=(preflight packages services themes deploy validate preview)
 INFINITY_PREVIEW_ARGV=()
 INFINITY_PACKAGES_ARGV=()
 INFINITY_PACKAGES_MICROCODE_PACKAGE=
@@ -29,9 +29,9 @@ Stages:
   preflight,repositories,packages,base,hardware,wayland,desktop-shell,applications,services,boot,greeter,themes,deploy,validate,preview
 
 Apply-capable stages:
-  preflight,packages,themes,deploy,validate,preview
+  preflight,packages,services,themes,deploy,validate,preview
 
-Confirmed packages/preview runs request sudo automatically when needed.
+Confirmed packages/services/preview runs request sudo automatically when needed.
 
 No disk partitioning is performed.
 USAGE
@@ -61,7 +61,7 @@ infinity_exec_as_target_user() {
 infinity_elevate_apply_if_required() {
   local stage needs_root=0
   for stage in "$@"; do
-    if [[ $stage == preview || $stage == packages ]]; then
+    if [[ $stage == preview || $stage == packages || $stage == services ]]; then
       needs_root=1
       break
     fi
@@ -99,21 +99,25 @@ infinity_has_apply_stage() {
 }
 
 infinity_validate_apply_selection() {
-  local unsupported=() stage has_preview=0 has_packages=0 count=0
+  local unsupported=() stage has_preview=0 has_packages=0 has_services=0 count=0
   for stage in "$@"; do
     count=$((count + 1))
     [[ $stage == preview ]] && has_preview=1
     [[ $stage == packages ]] && has_packages=1
+    [[ $stage == services ]] && has_services=1
     infinity_has_apply_stage "$stage" || unsupported+=("$stage")
   done
   if ((${#unsupported[@]})); then
-    infinity_die "selected stages are plan-only: ${unsupported[*]}; use --plan or select only preflight,packages,themes,deploy,validate,preview"
+    infinity_die "selected stages are plan-only: ${unsupported[*]}; use --plan or select only preflight,packages,services,themes,deploy,validate,preview"
   fi
   if [[ $has_preview == 1 && $count -ne 1 ]]; then
     infinity_die "preview apply must be selected by itself; run only --stage preview so deployment stays user-scoped"
   fi
   if [[ $has_packages == 1 && $count -ne 1 ]]; then
     infinity_die "packages apply must be selected by itself; run only --stage packages so package installation cannot mix with deployment, services, boot, greeter, or theme actions"
+  fi
+  if [[ $has_services == 1 && $count -ne 1 ]]; then
+    infinity_die "services apply must be selected by itself; run only --stage services so offline enablement cannot mix with package, deployment, boot, greeter, or theme actions"
   fi
 }
 
@@ -269,7 +273,6 @@ infinity_preview_preflight() {
   local resolved uid home
   resolved=$(infinity_resolved_root "$INFINITY_TARGET_ROOT") || infinity_die "cannot resolve target root '$INFINITY_TARGET_ROOT'"
   [[ $resolved == / ]] || infinity_die "preview apply only supports --target-root / on the running VM; got '$resolved'. Use --plan for other roots."
-  # [[ ${EUID:-$(id -u)} == 0 ]] || infinity_die "preview apply must run as root with sudo so pacman and user deployment can write to the VM"
   [[ -x /usr/bin/pacman ]] || infinity_die "preview apply requires executable /usr/bin/pacman; run this on an already bootable Arch VM, not this development host or a non-Arch environment"
   getent passwd "$INFINITY_TARGET_USER" >/dev/null || infinity_die "target user '$INFINITY_TARGET_USER' does not exist on this VM"
   uid=$(getent passwd "$INFINITY_TARGET_USER" | cut -d: -f3)
@@ -282,8 +285,23 @@ infinity_packages_preflight() {
   local resolved
   resolved=$(infinity_resolved_root "$INFINITY_TARGET_ROOT") || infinity_die "cannot resolve target root '$INFINITY_TARGET_ROOT'"
   [[ $resolved == / ]] || infinity_die "packages apply only supports --target-root / on the running Arch system; got '$resolved'. Use --plan for other roots."
-  # [[ ${EUID:-$(id -u)} == 0 ]] || infinity_die "packages apply must run as root with sudo so pacman can write to the live system"
   [[ -x /usr/bin/pacman ]] || infinity_die "packages apply requires executable /usr/bin/pacman; run this on an already bootable Arch system"
+}
+
+infinity_services_preflight() {
+  local resolved
+  resolved=$(infinity_resolved_root "$INFINITY_TARGET_ROOT") || infinity_die "cannot resolve target root '$INFINITY_TARGET_ROOT'"
+  [[ $resolved != / ]] || infinity_die "services apply requires an offline target and refuses the live root /"
+  if [[ -e $resolved/run/systemd/system || -L $resolved/run/systemd/system || -e $resolved/run/systemd/private || -L $resolved/run/systemd/private ]]; then
+    infinity_die "services target '$resolved' appears active because it contains systemd runtime state; stop or unmount that target before enabling services"
+  fi
+  INFINITY_TARGET_ROOT=$resolved
+}
+
+infinity_prewrite_services_validation() {
+  PYTHONPATH="$INFINITY_REPO/installation/lib" "$INFINITY_PYTHON" "$INFINITY_REPO/installation/stages/services.py" validate \
+    --target-root "$INFINITY_TARGET_ROOT" \
+    --manifest "$INFINITY_REPO/system/services/enabled-system-units.tsv"
 }
 
 infinity_prewrite_repository_validation() {
@@ -361,7 +379,11 @@ infinity_run_stage() {
       infinity_log "packages: complete; graphics, AUR, services, boot, greeter, deploy, and theme actions were not run"
       ;;
     services)
-      infinity_log "PLAN enable NetworkManager, bluetooth, power-profiles-daemon, greetd, pipewire user services where present"
+      local services_action=apply
+      [[ $INFINITY_DRY_RUN == 1 ]] && services_action=plan
+      infinity_log_command "$INFINITY_PYTHON" "$INFINITY_REPO/installation/stages/services.py" "$services_action" \
+        --target-root "$INFINITY_TARGET_ROOT" \
+        --manifest "$INFINITY_REPO/system/services/enabled-system-units.tsv"
       ;;
     boot)
       infinity_log "PLAN install systemd-boot/Plymouth templates from system/boot and system/plymouth after UUID review"
@@ -451,6 +473,7 @@ infinity_installer_main() {
     for stage in "${selected[@]}"; do
       [[ $stage == preview ]] && infinity_preview_preflight
       [[ $stage == packages ]] && infinity_packages_preflight
+      [[ $stage == services ]] && infinity_services_preflight
     done
     infinity_elevate_apply_if_required "${selected[@]}" || return $?
   fi
@@ -464,6 +487,8 @@ infinity_installer_main() {
       elif [[ $stage == packages ]]; then
         infinity_compute_packages_argv
         infinity_prewrite_packages_validation
+      elif [[ $stage == services ]]; then
+        infinity_prewrite_services_validation
       fi
     done
     if [[ $needs_prewrite_validation == 1 ]]; then

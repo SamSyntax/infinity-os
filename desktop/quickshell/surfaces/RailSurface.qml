@@ -14,6 +14,7 @@ PanelWindow {
     readonly property bool fullWidth: layoutVariant === "full"
     readonly property bool compact: width < Services.RailGeometry.compactBreakpoint
     readonly property bool narrow: width < Services.RailGeometry.narrowBreakpoint
+    readonly property bool nestedSession: Quickshell.env("INFINITY_NESTED") === "1"
 
     signal appearanceRequested
     signal controlRequested
@@ -342,10 +343,13 @@ PanelWindow {
                 onClicked: root.controlRequested()
             }
             Components.RailButton {
-                enabled: !lockProcess.running
+                enabled: !root.nestedSession && !lockProcess.running
                 index: "04"
                 label: "LOCK"
-                onClicked: lockProcess.running = true
+                onClicked: {
+                    if (!root.nestedSession)
+                        lockProcess.running = true;
+                }
             }
         }
     }

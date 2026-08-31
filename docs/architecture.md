@@ -16,6 +16,8 @@ Infinity OS uses this repository as source of truth and deploys into a target Ar
 - Lock path is hypridle + real hyprlock; Quickshell must not fake locking.
 - Portal path is xdg-desktop-portal + xdg-desktop-portal-hyprland + GTK fallback.
 - Theme application generates target files, snapshots prior regular files, performs symlink-safe atomic replacements, and restores the full snapshot if any replacement fails.
+- Runtime testing uses two separate boundaries: a nested Hyprland sandbox for fast desktop iteration and a snapshot-mode QEMU guest for boot and system integration.
+- System service enablement creates only manifest-declared target links inside a canonical, root-owned offline path using descriptor-relative, no-follow filesystem operations. The manifest also records each owning package so validation catches policy/package drift. It never contacts a running service manager.
 - Ryoku is a cohesion reference only; no copied art, source, names, or palettes.
 
 ## Desktop shell data flow
@@ -34,10 +36,12 @@ Hyprland special workspaces contain ordinary application windows. Ordinary windo
 
 ## Deployment flow
 
-`install.sh` parses target/root/user/stage options and delegates to `installation/lib/installer.sh`. Stages are idempotent where practical and plan-visible. Config deployment uses `bin/infinity-deploy`, `deployment/mappings.tsv`, and timestamped backups for conflicts.
+`install.sh` parses target/root/user/stage options and delegates to `installation/lib/installer.sh`. Stages are idempotent where practical and plan-visible. Config deployment uses `bin/infinity-deploy`, `deployment/mappings.tsv`, and timestamped backups for conflicts. Offline system enablement is a separate privileged boundary: `installation/stages/services.py` validates installed unit files and creates only the links declared by `system/services/enabled-system-units.tsv`.
 
 ## End-to-end flow
 
 `firmware → systemd-boot → kernel/initramfs + Plymouth → systemd → greetd/Cage/ReGreet → Hyprland → Quickshell → applications`
 
-The repository currently implements the source definitions and safe deployment slice. Boot rendering, package application, service enablement, and greeter login still require a VM integration stage before they can be called operational.
+The repository currently implements source definitions, safe deployment, package application, and offline service-link creation. Boot rendering, enabled-service startup, and greeter login still require a VM integration stage before they can be called operational.
+
+The nested harness exercises only the Hyprland → Quickshell portion. It deploys into an isolated home, keeps runtime contents under the repository through an inherited directory descriptor, disables host-affecting idle/session imports, and qualifies IPC by the nested compositor signature. The QEMU harness supplies KVM and virgl launch plumbing, but a bootable guest image and guest-side readiness marker remain necessary for end-to-end boot assertions.

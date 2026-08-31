@@ -32,6 +32,19 @@ def resolve_root(value: str) -> Path:
     return root
 
 
+def require_trusted_root_path(root: Path) -> None:
+    current = Path("/")
+    for part in root.parts[1:]:
+        current /= part
+        metadata = os.stat(current, follow_symlinks=False)
+        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+            raise ValueError(f"privileged target root path contains an unsafe component: {current}")
+        if metadata.st_uid != 0 or stat.S_IMODE(metadata.st_mode) & 0o022:
+            raise ValueError(
+                f"privileged target root path component must be root-owned and not group/world-writable: {current}"
+            )
+
+
 def target_identity(root: Path, user: str):
     if os.geteuid() != 0:
         return None
@@ -91,9 +104,13 @@ def read_regular(root: Path, destination: Path):
     parent_fd, name = _open_parent(root, destination)
     try:
         try:
-            fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=parent_fd)
+            fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent_fd)
         except FileNotFoundError:
             return None
+        except OSError as error:
+            if error.errno == errno.ELOOP:
+                raise ValueError(f"refusing non-regular destination: {destination}") from error
+            raise
         try:
             metadata = os.fstat(fd)
             if not stat.S_ISREG(metadata.st_mode):
@@ -129,6 +146,66 @@ def read_existing_regular(root: Path, source: Path) -> bytes:
             os.close(file_fd)
     finally:
         os.close(fd)
+
+
+def require_directory(root: Path, directory: Path) -> None:
+    relative = directory.relative_to(root)
+    fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        for part in relative.parts:
+            next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            os.close(fd)
+            fd = next_fd
+    finally:
+        os.close(fd)
+
+
+def validate_symlink(root: Path, destination: Path, target: str) -> str:
+    relative = destination.relative_to(root)
+    fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        for part in relative.parts[:-1]:
+            try:
+                next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            except FileNotFoundError:
+                return "missing"
+            os.close(fd)
+            fd = next_fd
+        try:
+            metadata = os.stat(relative.name, dir_fd=fd, follow_symlinks=False)
+        except FileNotFoundError:
+            return "missing"
+        if not stat.S_ISLNK(metadata.st_mode):
+            raise ValueError(f"refusing conflicting service link destination: {destination}")
+        current = os.readlink(relative.name, dir_fd=fd)
+        if current != target:
+            raise ValueError(
+                f"refusing conflicting service link at {destination}; expected {target!r}, found {current!r}"
+            )
+        return "existing"
+    finally:
+        os.close(fd)
+
+
+def ensure_symlink(root: Path, destination: Path, target: str) -> str:
+    parent_fd, name = _open_parent(root, destination)
+    try:
+        try:
+            metadata = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        except FileNotFoundError:
+            os.symlink(target, name, dir_fd=parent_fd)
+            os.fsync(parent_fd)
+            return "created"
+        if not stat.S_ISLNK(metadata.st_mode):
+            raise ValueError(f"refusing conflicting service link destination: {destination}")
+        current = os.readlink(name, dir_fd=parent_fd)
+        if current != target:
+            raise ValueError(
+                f"refusing conflicting service link at {destination}; expected {target!r}, found {current!r}"
+            )
+        return "existing"
+    finally:
+        os.close(parent_fd)
 
 
 def atomic_write(root: Path, destination: Path, data: bytes, mode: int, owner=None):
@@ -168,61 +245,13 @@ def atomic_write(root: Path, destination: Path, data: bytes, mode: int, owner=No
 
 
 def init_regular(root: Path, destination: Path, mode: int = 0o644, owner=None):
-    parent_fd, name = _open_parent(root, destination, owner)
-    try:
-        try:
-            current = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
-            if stat.S_ISLNK(current.st_mode) or not stat.S_ISREG(current.st_mode):
-                raise ValueError(f"refusing unsafe log destination: {destination}")
-        except FileNotFoundError:
-            pass
-        fd = os.open(
-            name,
-            os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW,
-            mode,
-            dir_fd=parent_fd,
-        )
-        try:
-            os.fchmod(fd, mode)
-            if owner is not None:
-                os.fchown(fd, owner[0], owner[1])
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-    finally:
-        os.close(parent_fd)
+    atomic_write(root, destination, b"", mode, owner)
 
 
 def append_regular(root: Path, destination: Path, data: bytes, mode: int = 0o644, owner=None):
-    parent_fd, name = _open_parent(root, destination, owner)
-    try:
-        try:
-            current = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
-            if stat.S_ISLNK(current.st_mode) or not stat.S_ISREG(current.st_mode):
-                raise ValueError(f"refusing unsafe log destination: {destination}")
-        except FileNotFoundError:
-            pass
-        fd = os.open(
-            name,
-            os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW,
-            mode,
-            dir_fd=parent_fd,
-        )
-        try:
-            pending = memoryview(data)
-            while pending:
-                written = os.write(fd, pending)
-                if written == 0:
-                    raise OSError(errno.EIO, f"short write appending to {destination}")
-                pending = pending[written:]
-            os.fchmod(fd, mode)
-            if owner is not None:
-                os.fchown(fd, owner[0], owner[1])
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-    finally:
-        os.close(parent_fd)
+    current = read_regular(root, destination)
+    existing = b"" if current is None else current[0]
+    atomic_write(root, destination, existing + data, mode, owner)
 
 
 def remove_regular(root: Path, destination: Path):

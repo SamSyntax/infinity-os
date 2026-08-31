@@ -27,7 +27,7 @@ def run(name, cmd):
         fail(name, result.stdout.strip())
 
 def shell_syntax():
-    scripts = [REPO / "install.sh", *sorted((REPO / "bin").glob("infinity-*")), REPO / "installation/lib/installer.sh", REPO / "desktop/greeter/start-greeter"]
+    scripts = [REPO / "install.sh", REPO / "launch-nested.sh", *sorted((REPO / "bin").glob("infinity-*")), REPO / "installation/lib/installer.sh", REPO / "desktop/greeter/start-greeter"]
     for script in scripts:
         if script.suffix == ".py":
             continue

@@ -17,3 +17,4 @@ desktop/greeter/start-greeter	usr/share/infinity-os/greeter/start-greeter	0755	n
 desktop/greeter/shell.qml	usr/share/infinity-os/greeter/shell.qml	0644	no
 system/services/greetd.toml	etc/greetd/config.toml	0644	no
 desktop/wallpapers/nocturne.svg	usr/share/infinity-os/wallpapers/nocturne.svg	0644	no
+bin/infinity-capture-screenshot	.local/bin/infinity-capture-screenshot	0755	no

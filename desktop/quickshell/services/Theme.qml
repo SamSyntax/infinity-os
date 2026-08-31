@@ -13,6 +13,7 @@ Singleton {
     property string applyError: ""
     property string pendingThemeId: ""
     readonly property string commandPath: Quickshell.env("INFINITY_THEME_COMMAND") || Quickshell.env("HOME") + "/.local/share/infinity-os/runtime/bin/infinity-theme"
+    readonly property string targetRoot: Quickshell.env("INFINITY_TARGET_ROOT") || "/"
     readonly property var activePalette: previewTheme === null ? adapter.palette : previewTheme.palette
     readonly property string currentThemeId: adapter.themeId
     readonly property string previewThemeId: previewTheme === null ? "" : previewTheme.id
@@ -35,6 +36,8 @@ Singleton {
 
     signal applySucceeded(string themeId)
 
+    onCurrentThemeIdChanged: console.info("Infinity theme loaded:", currentThemeId)
+
     function preview(theme) {
         previewTheme = theme;
         applyError = "";
@@ -50,7 +53,7 @@ Singleton {
         pendingThemeId = themeId;
         applyError = "";
         applying = true;
-        applyProcess.command = [commandPath, "apply", themeId, "--target-user", Quickshell.env("USER")];
+        applyProcess.command = [commandPath, "apply", themeId, "--target-root", targetRoot, "--target-user", Quickshell.env("USER")];
         applyProcess.running = true;
     }
 

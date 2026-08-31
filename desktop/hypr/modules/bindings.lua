@@ -1,5 +1,16 @@
 mainMod = "ALT"
 
+local quickshell_start = "quickshell --path ~/.config/quickshell/shell.qml --no-duplicate"
+if os.getenv("INFINITY_NESTED") ~= "1" then
+  quickshell_start = quickshell_start .. " --daemonize"
+end
+
+for workspace = 1, 9 do
+  local key = tostring(workspace)
+  o.replace("ALT + " .. key, "Switch to workspace " .. key, hl.dsp.focus({ workspace = key }))
+  o.replace("ALT + SHIFT + " .. key, "Move window to workspace " .. key, hl.dsp.window.move({ workspace = key }))
+end
+
 o.replace("SUPER + RETURN", "Terminal", "ghostty")
 o.replace("SUPER + SHIFT + F", "File manager", "uwsm app -- nautilus --new-window")
 o.replace("SUPER + M", "Toggle split layout", hl.dsp.layout("togglesplit"))
@@ -49,7 +60,7 @@ o.replace("SUPER + SHIFT + KP_SUBTRACT", "Reset zoom", function() set_zoom(1) en
 o.replace("SUPER + CTRL + 1", "Reset zoom", function() set_zoom(1) end)
 
 o.replace("SUPER + V", "Clipboard history", "cliphist list | fuzzel --dmenu | cliphist decode | wl-copy")
-o.replace("SUPER + Z", "Toggle Quickshell", "quickshell kill --path ~/.config/quickshell/shell.qml || quickshell --path ~/.config/quickshell/shell.qml --no-duplicate --daemonize")
+o.replace("SUPER + Z", "Toggle Quickshell", "quickshell kill --path ~/.config/quickshell/shell.qml || " .. quickshell_start)
 o.replace("SUPER + 4", "Master layout left", "hyprctl dispatch layoutmsg orientationleft && hyprctl dispatch layoutmsg swapwithmaster")
 o.replace("SUPER + SHIFT + S", "Screenshot with editing", "infinity-capture-screenshot")
 o.replace("SUPER + SHIFT + G", "Toggle floating", hl.dsp.window.float({ action = "toggle" }))

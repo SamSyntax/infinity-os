@@ -6,7 +6,7 @@
 
 Apply-capable stages:
 
-`preflight,packages,themes,deploy,validate,preview`
+`preflight,packages,services,themes,deploy,validate,preview`
 
 Plan mode:
 
@@ -22,7 +22,7 @@ Apply mode requires `--confirm` and should be run only on a target VM/system:
 
 If `--confirm` includes any plan-only stage, the installer exits before creating its log directory or writing files and names the unsupported stages in the error. Use `--plan` for the full stage list.
 
-The two package-changing apply stages, `packages` and `preview`, must each be selected by themselves. This prevents a package transaction from being accidentally coupled to deployment, service, boot, greeter, or theme writes.
+The two package-changing apply stages, `packages` and `preview`, must each be selected by themselves. The offline `services` apply stage is also standalone. These boundaries prevent package transactions, offline system links, deployment, boot, greeter, and theme writes from sharing one failure domain.
 
 No stage partitions disks. Hardware and graphics stages report decisions and package groups; they do not assume NVIDIA/AMD/Intel globally.
 
@@ -67,6 +67,36 @@ Safety and scope:
 Included official groups, merged in this order with first occurrence preserved: `base`, `hardware`, `wayland`, `desktop-shell`, `applications`. The selector deliberately never reads `graphics.official.txt` or `aur.txt` for this stage. Both `intel-ucode` and `amd-ucode` are removed from the hardware group first; then production detection adds at most one: none in a VM/container, `intel-ucode` on bare-metal GenuineIntel, `amd-ucode` on bare-metal AuthenticAMD. Unknown bare-metal vendors fail before log creation or pacman.
 
 Failure recovery: if pacman returns nonzero, the installer exits immediately after printing/logging that package state may have changed, no removal was attempted, and the recovery action is to resolve the pacman error and rerun `./install.sh --confirm --stage packages`.
+
+## Offline system services stage
+
+The `services` stage enables the smallest boot-time system set in an already populated, mounted Arch root. A system service is a background program managed by systemd; enabling it means adding a link beneath a target such as `multi-user.target.wants`, so systemd includes it during a future boot. This stage does not run the service.
+
+Plan first without root privileges or writes:
+
+```sh
+./install.sh --plan --target-root /mnt/infinity-root --target-user sam --stage services
+```
+
+Apply only while the target is offline:
+
+```sh
+./install.sh --confirm --target-root /mnt/infinity-root --target-user sam --stage services
+```
+
+The normal-user command checks that the resolved root is not `/` and lacks the usual systemd runtime markers, replaces the supplied path with that canonical root, then re-executes through `/usr/bin/sudo` with canonical arguments. It must be the only selected stage. After elevation, the installer requires every target-path component to be root-owned and not group/world-writable; this prevents an unprivileged process from replacing the canonical path between privileged phases. It then validates the complete manifest, all installed source units, every parent directory, and every existing destination before creating the log or a service link.
+
+The policy in `system/services/enabled-system-units.tsv` declares each unit, target, and owning official package. Repository validation requires each provider to remain in an official package manifest. It creates exactly these links:
+
+- `multi-user.target.wants/NetworkManager.service` for network management;
+- `bluetooth.target.wants/bluetooth.service` for Bluetooth hardware;
+- `multi-user.target.wants/power-profiles-daemon.service` for power-mode selection.
+
+Each link points to its absolute unit path under `/usr/lib/systemd/system/` in the future booted target. The implementation uses descriptor-relative filesystem operations with no-follow checks instead of contacting a running manager. Missing installed units, symlinked parents or source units, ordinary files at destinations, and wrong existing links fail without replacement. An exact existing link is accepted, making reruns idempotent.
+
+This stage creates missing `multi-user.target.wants` and `bluetooth.target.wants` directories as needed, writes the three enablement links, and atomically maintains `<target-root>/var/log/infinity-os/install.log`. It does not install packages, invoke process-control tools, enter a chroot, or configure boot, greetd, user sessions, portals, audio, or idle behavior. Greetd, SSH, portals, UPower, PipeWire, WirePlumber, and hypridle remain deferred because they need later security decisions or are activated through sockets, D-Bus, or user sessions.
+
+Recovery: validation failures happen before all writes, including the log. If a low-level I/O failure occurs after link creation starts, already-correct links remain; fix the reported target filesystem problem and rerun the same command. Conflicting target entries are never removed automatically. Rejecting `/` and visible runtime markers is a practical offline check, not proof across every mount namespace, so the operator must still ensure the target is not currently booted or managed elsewhere.
 
 ## Manual VM preview stage
 

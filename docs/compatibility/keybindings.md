@@ -19,6 +19,8 @@ This file is the canonical compatibility inventory. `docs/compatibility/hyprland
 | Hyprland | Super+F | fullscreen | fullscreen focused window | `hl.dsp.window.fullscreen` | preserved |
 | Hyprland | Super+R | apps menu | open app launcher | `fuzzel` | official Arch package replaces AUR-only Walker |
 | Infinity distro | Super+Shift+M | distro-only session exit | exit manual Hyprland preview | `hyprctl dispatch exit` | new non-conflicting VM preview escape hatch |
+| Infinity distro | Alt+1…9 | workspace selection | switch directly to numbered workspace | `hl.dsp.focus({ workspace = N })` | uses the configured `mainMod`; avoids preserved Super+4 layout binding |
+| Infinity distro | Alt+Shift+1…9 | move focused window | move window to numbered workspace | `hl.dsp.window.move({ workspace = N })` | paired with Alt workspace selection |
 | Hyprland | Super+mouse_down/up | cursor zoom | zoom in/out | cursor zoom helper | preserved |
 | Hyprland | Super+equal/minus/KP_ADD/KP_SUBTRACT | cursor zoom | keyboard zoom in/out | cursor zoom helper | preserved |
 | Hyprland | Super+Shift+mouse_up/down/minus/KP_SUBTRACT, Super+Ctrl+1 | reset cursor zoom | return zoom to 1 | cursor zoom reset helper | preserved |

@@ -7,7 +7,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "installation/lib"))
-from safe_fs import append_regular, init_regular, read_existing_regular, resolve_root, validate_relative
+from safe_fs import append_regular, init_regular, read_existing_regular, require_trusted_root_path, resolve_root, validate_relative
 
 
 def run(*arguments):
@@ -75,6 +75,14 @@ def main():
 
     if Path("/") / validate_relative("var/log/infinity-os/install.log") != Path("/var/log/infinity-os/install.log"):
         raise SystemExit("live-root log destination is not /var/log/infinity-os/install.log")
+
+    require_trusted_root_path(Path("/"))
+    try:
+        require_trusted_root_path(Path("/tmp"))
+    except ValueError:
+        pass
+    else:
+        raise SystemExit("privileged target trust accepted world-writable /tmp")
 
     with tempfile.TemporaryDirectory(prefix="infinity-safe-source-") as tmp:
         root = Path(tmp)

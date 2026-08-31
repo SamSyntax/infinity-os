@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+REPO_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+RUNTIME_ROOT="$REPO_DIR/.runtime/qemu"
+IMAGE=""
+MODE="run"
+DRY_RUN=0
+
+usage() {
+  cat <<'EOF'
+Usage: infinity-qemu-smoke --check
+       infinity-qemu-smoke --image IMAGE.qcow2 [--dry-run]
+
+  --check       Verify KVM, render-node, QEMU, and virtio-gpu-gl availability.
+  --image PATH  Boot an explicit qcow2 image with KVM and virgl in snapshot mode.
+  --dry-run     Print the complete QEMU command without starting the VM.
+  --help        Show this help.
+
+Runtime state and serial logs are written under .runtime/qemu/. The source image
+is never modified because QEMU runs with -snapshot. This command never needs root.
+EOF
+}
+
+die() {
+  printf 'infinity qemu smoke: %s\n' "$*" >&2
+  exit 1
+}
+
+while (($# > 0)); do
+  case "$1" in
+    --check)
+      MODE="check"
+      shift
+      ;;
+    --image)
+      (($# >= 2)) || die "--image requires a path"
+      IMAGE=$2
+      shift 2
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+done
+
+if [[ $MODE == "check" && -n $IMAGE ]]; then
+  die "--check cannot be combined with --image"
+fi
+if [[ $MODE == "check" && $DRY_RUN == 1 ]]; then
+  die "--check cannot be combined with --dry-run"
+fi
+[[ $MODE == "check" || -n $IMAGE ]] || die "--image is required to launch a VM; use --check for capability-only validation"
+
+((EUID != 0)) || die "refusing to run QEMU as root"
+for command in mktemp python3 qemu-img qemu-system-x86_64 realpath; do
+  command -v "$command" >/dev/null 2>&1 || die "required command is missing: $command"
+done
+[[ -c /dev/kvm && -r /dev/kvm && -w /dev/kvm ]] || die "/dev/kvm is unavailable to the current user"
+
+shopt -s nullglob
+render_nodes=(/dev/dri/renderD*)
+shopt -u nullglob
+((${#render_nodes[@]} > 0)) || die "no DRM render node is available"
+RENDER_NODE=""
+for candidate in "${render_nodes[@]}"; do
+  if [[ -r $candidate && -w $candidate ]]; then
+    RENDER_NODE=$candidate
+    break
+  fi
+done
+[[ -n $RENDER_NODE ]] || die "no accessible DRM render node is available"
+DEVICE_HELP=$(qemu-system-x86_64 -device help 2>&1) || die "unable to query QEMU device support"
+[[ $DEVICE_HELP == *virtio-gpu-gl* ]] || die "QEMU lacks virtio-gpu-gl support"
+
+if [[ $MODE == "check" ]]; then
+  printf 'ok: KVM is accessible at /dev/kvm\n'
+  printf 'ok: render node is accessible at %s\n' "$RENDER_NODE"
+  printf 'ok: QEMU provides virtio-gpu-gl\n'
+  exit 0
+fi
+
+REQUESTED_IMAGE=$IMAGE
+IMAGE=$(realpath -e -- "$REQUESTED_IMAGE") || die "image does not exist: $REQUESTED_IMAGE"
+[[ -f $IMAGE ]] || die "image is not a regular file: $IMAGE"
+IMAGE_INFO=$(qemu-img info --output=json -- "$IMAGE") || die "unable to inspect image metadata: $IMAGE"
+IMAGE_FORMAT=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["format"])' <<<"$IMAGE_INFO") || die "image metadata is invalid: $IMAGE"
+[[ $IMAGE_FORMAT == "qcow2" ]] || die "image must be qcow2, got: $IMAGE_FORMAT"
+IMAGE_EXTERNAL_STORAGE=$(python3 -c 'import json,sys; data=json.load(sys.stdin); print(next((data[key] for key in ("backing-filename", "full-backing-filename", "data-file", "full-data-file") if data.get(key)), ""))' <<<"$IMAGE_INFO") || die "image metadata is invalid: $IMAGE"
+[[ -z $IMAGE_EXTERNAL_STORAGE ]] || die "image must be standalone; external backing or data file detected: $IMAGE_EXTERNAL_STORAGE"
+
+mkdir -p "$RUNTIME_ROOT"
+RUN_DIR=$(mktemp -d "$RUNTIME_ROOT/run.XXXXXX")
+SERIAL_LOG="$RUN_DIR/guest-serial.log"
+mkdir -p "$RUN_DIR/tmp" "$RUN_DIR/cache"
+QEMU_IMAGE=${IMAGE//,/,,}
+
+QEMU=(
+  qemu-system-x86_64
+  -name infinity-smoke
+  -machine q35,accel=kvm
+  -cpu host
+  -smp 4
+  -m 4096
+  -device virtio-gpu-gl
+  -display gtk,gl=on
+  -drive "file=$QEMU_IMAGE,if=virtio,format=qcow2,cache=none"
+  -snapshot
+  -nic user,model=virtio-net-pci
+  -serial "file:$SERIAL_LOG"
+)
+
+printf 'infinity qemu smoke: run directory: %s\n' "$RUN_DIR"
+if ((DRY_RUN)); then
+  printf 'env -u __GLX_VENDOR_LIBRARY_NAME -u LIBVA_DRIVER_NAME TMPDIR=%q XDG_CACHE_HOME=%q ' "$RUN_DIR/tmp" "$RUN_DIR/cache"
+  printf '%q ' "${QEMU[@]}"
+  printf '\n'
+  exit 0
+fi
+
+printf 'infinity qemu smoke: booting a temporary snapshot; close the VM window to stop\n'
+printf 'infinity qemu smoke: guest serial output: %s\n' "$SERIAL_LOG"
+exec env -u __GLX_VENDOR_LIBRARY_NAME -u LIBVA_DRIVER_NAME TMPDIR="$RUN_DIR/tmp" XDG_CACHE_HOME="$RUN_DIR/cache" "${QEMU[@]}"

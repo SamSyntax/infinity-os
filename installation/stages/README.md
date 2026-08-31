@@ -1,3 +1,3 @@
 # Installer stages
 
-The first-pass implementation keeps stage logic in `installation/lib/installer.sh` to preserve a thin entry point while avoiding premature fragmentation. Split a stage into this directory once it gains real apply operations beyond planning/deployment delegation.
+Stage dispatch and shared privilege/logging behavior remain in `installation/lib/installer.sh`. A stage moves into this directory when it gains substantive apply operations; `services.py` owns offline system-service validation and descriptor-safe enablement links.
