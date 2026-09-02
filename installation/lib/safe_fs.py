@@ -131,7 +131,7 @@ def read_existing_regular(root: Path, source: Path) -> bytes:
             next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
             os.close(fd)
             fd = next_fd
-        file_fd = os.open(relative.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=fd)
+        file_fd = os.open(relative.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
         try:
             metadata = os.fstat(file_fd)
             if not stat.S_ISREG(metadata.st_mode):
@@ -194,7 +194,34 @@ def ensure_symlink(root: Path, destination: Path, target: str) -> str:
             metadata = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
         except FileNotFoundError:
             os.symlink(target, name, dir_fd=parent_fd)
-            os.fsync(parent_fd)
+            try:
+                os.fsync(parent_fd)
+            except OSError as error:
+                cleanup_errors = []
+                try:
+                    metadata = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+                    if stat.S_ISLNK(metadata.st_mode) and os.readlink(name, dir_fd=parent_fd) == target:
+                        os.unlink(name, dir_fd=parent_fd)
+                    else:
+                        cleanup_errors.append(f"created path is no longer the expected symlink: {destination}")
+                except OSError as cleanup_error:
+                    cleanup_errors.append(str(cleanup_error))
+                try:
+                    os.fsync(parent_fd)
+                except OSError as cleanup_error:
+                    cleanup_errors.append(str(cleanup_error))
+                if cleanup_errors:
+                    detail = "; ".join(cleanup_errors)
+                    raise OSError(
+                        error.errno,
+                        f"created symlink {destination} but could not make it durable, and cleanup also failed: {detail}",
+                        str(destination),
+                    ) from error
+                raise OSError(
+                    error.errno,
+                    f"created symlink {destination} but could not make it durable; removed the created symlink and left the previous state absent",
+                    str(destination),
+                ) from error
             return "created"
         if not stat.S_ISLNK(metadata.st_mode):
             raise ValueError(f"refusing conflicting service link destination: {destination}")
@@ -228,13 +255,14 @@ def atomic_write(root: Path, destination: Path, data: bytes, mode: int, owner=No
             with os.fdopen(fd, "wb", closefd=False) as handle:
                 handle.write(data)
                 handle.flush()
-                os.fsync(fd)
             os.fchmod(fd, mode)
             if owner is not None:
                 os.fchown(fd, owner[0], owner[1])
+            os.fsync(fd)
         finally:
             os.close(fd)
         os.replace(temporary, name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+        os.fsync(parent_fd)
     finally:
         try:
             os.unlink(temporary, dir_fd=parent_fd)
@@ -264,5 +292,6 @@ def remove_regular(root: Path, destination: Path):
         if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
             raise ValueError(f"refusing to remove unsafe destination: {destination}")
         os.unlink(name, dir_fd=parent_fd)
+        os.fsync(parent_fd)
     finally:
         os.close(parent_fd)

@@ -2,5 +2,5 @@
 vt = 1
 
 [default_session]
-command = "cage -s -- /usr/share/infinity-os/greeter/start-greeter"
+command = "cage -s -- /usr/lib/infinity-os/start-greeter"
 user = "greeter"

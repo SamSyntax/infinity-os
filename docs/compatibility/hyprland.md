@@ -19,16 +19,16 @@ Source: active `/home/sam/.config/hypr/bindings.lua`, read-only. Private paths a
 | Super+F | fullscreen | `hl.dsp.window.fullscreen` | preserved |
 | Super+R | apps | `fuzzel` | preserved intent with an official Arch launcher |
 | Super+Shift+M | distro-only session exit | `hyprctl dispatch exit` | new non-conflicting VM preview escape hatch |
-| Alt+1…9 | distro workspace selection | `hl.dsp.focus({ workspace = N })` | added without conflicting with preserved Super+4 |
-| Alt+Shift+1…9 | distro move-to-workspace | `hl.dsp.window.move({ workspace = N })` | paired with Alt workspace selection |
+| Super+1…9 | distro workspace selection | `hl.dsp.focus({ workspace = N })` | requested primary workspace navigation; layout action moved away from Super+4 |
+| Super+Shift+1…9 | distro move-to-workspace | `hl.dsp.window.move({ workspace = N })` | paired with Super workspace selection |
 | Super+mouse/equal/minus/KP | zoom/reset | cursor zoom helpers | preserved |
 | Super+V | clipboard | `cliphist | fuzzel --dmenu | wl-copy` | preserved intent with Fuzzel |
 | Super+Z | Quickshell toggle | repo path aware command | preserved |
-| Super+4 | master left | `hyprctl dispatch layoutmsg orientationleft && ...` | preserved |
+| Super+Ctrl+4 | master left | `hyprctl dispatch layoutmsg orientationleft && ...` | intent preserved while freeing Super+4 for workspace selection |
 | Super+Shift+S | final effective screenshot: `omarchy-capture-screenshot` | `infinity-capture-screenshot` | replacement provided |
 | Super+Shift+G | toggle float | `hl.dsp.window.float` | preserved |
 | Super+U | special workspace | `toggle_special("special")` | preserved |
 | Super+Shift+U | move special | `move special:special` | preserved |
 | Super+N | toggle split | `hl.dsp.layout("togglesplit")` | preserved |
 
-Effective overrides/conflicts: Super+M is the final layout toggle and supersedes an older Spotify intent. Screenshot command is replaced because Omarchy helpers are not part of this repository. Super+Shift+M is distro-only so a manually launched VM preview has an obvious exit path. Alt+1…9 uses the configured distro modifier because Super+4 is already preserved for the master-layout action. No other broad new keymap is introduced.
+Effective overrides/conflicts: Super+M is the final layout toggle and supersedes an older Spotify intent. Screenshot command is replaced because Omarchy helpers are not part of this repository. Super+Shift+M is distro-only so a manually launched VM preview has an obvious exit path. Super+1…9 is the requested workspace contract; the preserved master-left intent moves from Super+4 to Super+Ctrl+4. No other broad new keymap is introduced.

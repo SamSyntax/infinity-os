@@ -17,8 +17,10 @@ PanelWindow {
     readonly property bool nestedSession: Quickshell.env("INFINITY_NESTED") === "1"
 
     signal appearanceRequested
+    signal calendarRequested
     signal controlRequested
     signal launcherRequested
+    signal networkRequested
 
     anchors {
         left: true
@@ -105,7 +107,7 @@ PanelWindow {
 
             Item {
                 height: Services.RailGeometry.controlHeight
-                width: Services.RailGeometry.brandWidth
+                width: root.compact ? 22 : Services.RailGeometry.brandWidth
 
                 Text {
                     anchors.left: parent.left
@@ -117,13 +119,14 @@ PanelWindow {
                 }
                 Text {
                     anchors.left: parent.left
-                    anchors.leftMargin: 25
+                    anchors.leftMargin: 22
                     anchors.verticalCenter: parent.verticalCenter
                     color: Services.Theme.text
                     font.family: Services.Theme.monoFamily
                     font.letterSpacing: 1.5
                     font.pixelSize: Services.RailGeometry.brandLabelFontSize
                     text: "INFINITY"
+                    visible: !root.compact
                 }
             }
 
@@ -169,6 +172,16 @@ PanelWindow {
                         height: Services.RailGeometry.controlHeight
                         width: workspaceItem.active ? (root.narrow ? Services.RailGeometry.workspaceNarrowActiveWidth : Services.RailGeometry.workspaceActiveWidth) : (root.narrow ? Services.RailGeometry.workspaceNarrowWidth : Services.RailGeometry.workspaceWidth)
 
+                        HoverHandler {
+                            id: workspaceHover
+                        }
+
+                        TapHandler {
+                            id: workspaceTap
+
+                            onTapped: Services.Workspaces.activate(workspaceItem.modelData)
+                        }
+
                         Behavior on width {
                             NumberAnimation {
                                 duration: Services.Theme.duration
@@ -180,7 +193,7 @@ PanelWindow {
                             anchors.centerIn: parent
                             color: workspaceItem.active ? Services.Theme.accent : (workspaceItem.occupied ? Services.Theme.text : Services.Theme.muted)
                             height: workspaceItem.active ? 4 : 3
-                            opacity: workspaceItem.active ? 1 : (workspaceItem.occupied ? 0.55 : 0.22)
+                            opacity: workspaceTap.pressed ? 1 : (workspaceHover.hovered ? 0.82 : (workspaceItem.active ? 1 : (workspaceItem.occupied ? 0.55 : 0.22)))
                             radius: 2
                             width: workspaceItem.active ? 22 : 4
 
@@ -202,7 +215,7 @@ PanelWindow {
                             color: workspaceItem.active ? Services.Theme.accent : Services.Theme.muted
                             font.family: Services.Theme.monoFamily
                             font.pixelSize: Services.RailGeometry.workspaceFontSize
-                            opacity: workspaceMouse.containsMouse || workspaceItem.active ? 0.9 : 0
+                            opacity: workspaceHover.hovered || workspaceItem.active ? 0.9 : 0
                             text: workspaceItem.modelData
 
                             Behavior on opacity {
@@ -210,13 +223,6 @@ PanelWindow {
                                     duration: Services.Theme.duration
                                 }
                             }
-                        }
-                        MouseArea {
-                            id: workspaceMouse
-
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: Services.Workspaces.activate(workspaceItem.modelData)
                         }
                     }
                 }
@@ -230,10 +236,34 @@ PanelWindow {
         anchors.centerIn: parent
         border.color: Services.Theme.border
         border.width: root.fullWidth ? 0 : 1
-        color: root.fullWidth ? "transparent" : Qt.rgba(Services.Theme.surface.r, Services.Theme.surface.g, Services.Theme.surface.b, Services.Theme.panelOpacity)
         height: Services.RailGeometry.surfaceHeight
         radius: Services.RailGeometry.surfaceRadius
         width: centerContent.childrenRect.width + Services.RailGeometry.horizontalPadding * 2
+
+        color: root.fullWidth ? "transparent" : (calendarTap.pressed || calendarHover.hovered ? Services.Theme.surfaceAlt : Qt.rgba(Services.Theme.surface.r, Services.Theme.surface.g, Services.Theme.surface.b, Services.Theme.panelOpacity))
+        scale: calendarTap.pressed ? 0.98 : 1
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Services.Theme.duration
+            }
+        }
+        Behavior on scale {
+            NumberAnimation {
+                duration: Services.Theme.duration
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        HoverHandler {
+            id: calendarHover
+        }
+
+        TapHandler {
+            id: calendarTap
+
+            onTapped: root.calendarRequested()
+        }
 
         Row {
             id: centerContent
@@ -290,39 +320,89 @@ PanelWindow {
             height: Services.RailGeometry.controlHeight
             spacing: Services.RailGeometry.sectionSpacing
 
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                color: Services.Theme.muted
-                font.family: Services.Theme.monoFamily
-                font.pixelSize: Services.RailGeometry.telemetryFontSize
-                text: Services.SystemResources.cpuLabel
-                visible: !root.compact
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                color: Services.Theme.muted
-                font.family: Services.Theme.monoFamily
-                font.pixelSize: Services.RailGeometry.telemetryFontSize
-                text: Services.SystemResources.memoryLabel
-                visible: !root.compact
-            }
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                color: Services.Theme.border
-                height: Services.RailGeometry.dividerHeight
-                visible: !root.compact
-                width: 1
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                color: Services.Network.connected ? Services.Theme.text : Services.Theme.muted
-                elide: Text.ElideRight
-                font.family: Services.Theme.monoFamily
-                font.pixelSize: Services.RailGeometry.telemetryFontSize
-                maximumLineCount: 1
-                text: Services.Network.label
-                textFormat: Text.PlainText
-                width: Math.min(implicitWidth, root.narrow ? Services.RailGeometry.networkNarrowMaxWidth : Services.RailGeometry.networkMaxWidth)
+            Item {
+                id: networkControl
+
+                height: Services.RailGeometry.controlHeight
+                width: Services.RailGeometry.networkControlWidth
+
+                HoverHandler {
+                    id: networkHover
+                }
+
+                TapHandler {
+                    id: networkTap
+
+                    onTapped: root.networkRequested()
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    border.color: networkHover.hovered ? Services.Theme.border : "transparent"
+                    border.width: networkHover.hovered ? 1 : 0
+                    color: networkHover.hovered ? Services.Theme.surfaceAlt : "transparent"
+                    radius: Services.RailGeometry.controlRadius
+                    scale: networkTap.pressed ? 0.94 : 1
+
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: Services.Theme.duration
+                        }
+                    }
+                    Behavior on scale {
+                        NumberAnimation {
+                            duration: Services.Theme.duration
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                }
+
+                Item {
+                    anchors.centerIn: parent
+                    height: 13
+                    width: 15
+
+                    Row {
+                        anchors.bottom: parent.bottom
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 2
+                        visible: Services.Network.connected
+
+                        Repeater {
+                            model: [4, 8, 12]
+
+                            Rectangle {
+                                required property int modelData
+
+                                anchors.bottom: parent.bottom
+                                color: Services.Theme.accent
+                                height: modelData
+                                radius: 1
+                                width: 2
+                            }
+                        }
+                    }
+
+                    Item {
+                        anchors.fill: parent
+                        visible: !Services.Network.connected
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            color: Services.Theme.muted
+                            height: 2
+                            rotation: 45
+                            width: 14
+                        }
+                        Rectangle {
+                            anchors.centerIn: parent
+                            color: Services.Theme.muted
+                            height: 2
+                            rotation: -45
+                            width: 14
+                        }
+                    }
+                }
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter

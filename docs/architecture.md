@@ -22,15 +22,15 @@ Infinity OS uses this repository as source of truth and deploys into a target Ar
 
 ## Desktop shell data flow
 
-Quickshell creates one scene per monitor. Its top navbar reads small global services rather than owning system commands itself:
+Quickshell creates one scene per monitor. Its navbar and detail surfaces read small global services rather than owning system commands themselves:
 
 - `Workspaces.qml` uses Quickshell's Hyprland IPC model for focused and occupied workspaces. It refreshes monitor metadata because Hyprland exposes special-workspace state there.
-- `SystemResources.qml` samples `/proc/stat` and `/proc/meminfo` every two seconds. It computes CPU usage from two samples and reports unavailable values as `--` rather than inventing data.
-- `Network.qml` reads NetworkManager through fixed `nmcli` argument arrays every five seconds.
+- `SystemResources.qml` samples `/proc/stat` and `/proc/meminfo` every two seconds for the system detail surface. It computes CPU usage from two samples and reports unavailable values as `--` rather than inventing data; these strings are intentionally omitted from the navbar.
+- `Network.qml` reads NetworkManager through fixed `nmcli` argument arrays, samples the active device's sysfs byte counters, and probes only its discovered local gateway. The navbar shows a geometric state icon; the focused network surface distinguishes unavailable, measuring, and live values.
 - `Power.qml` reads UPower and power-profiles-daemon every ten seconds. Machines without a battery show AC power explicitly.
 - `Theme.qml` and `Wallpaper.qml` keep preview state in memory. Committing still goes through `infinity-theme`, preserving its atomic writes and rollback boundary.
 
-The appearance chooser is a monitor-local fullscreen layer-shell overlay. Arrow keys preview an edition, Enter commits it, and Escape clears the in-memory preview without writing. `WallpaperSurface.qml` remains on the background layer and combines crossfading images with a low-resolution animated grain field and scanline; reduced-motion mode stops perpetual movement and collapses transition durations.
+The appearance chooser is a monitor-local fullscreen layer-shell overlay. Arrow keys preview an edition, Enter commits it, and Escape clears the in-memory preview without writing. `WallpaperSurface.qml` remains on the background layer and combines readiness-gated crossfading images with a full-surface animated grain field, scanline, and crop-aware archival row overlays. Reduced-motion mode or zero motion scale stops perpetual movement, and reduced-motion mode collapses transition durations.
 
 Hyprland special workspaces contain ordinary application windows. Ordinary windows cannot reliably render above Quickshell's top or overlay layer-shell surfaces. Therefore, when a special workspace becomes active on a monitor, that monitor's scene closes popups and hides the navbar and OSD. This creates the requested unobstructed special workspace without weakening compositor or lock-screen boundaries. Other monitors remain visible.
 

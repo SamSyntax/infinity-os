@@ -36,7 +36,11 @@ def shell_syntax():
             run(f"shell syntax {script.relative_to(REPO)}", ["bash", "-n", str(script)])
 
 def python_syntax():
-    scripts = [*sorted((REPO / "bin").glob("infinity-*")), *sorted((REPO / "installation/lib").glob("*.py"))]
+    scripts = [
+        *sorted((REPO / "bin").glob("infinity-*")),
+        *sorted((REPO / "installation/lib").glob("*.py")),
+        *sorted((REPO / "installation/stages").glob("*.py")),
+    ]
     for script in scripts:
         first = script.read_text(encoding="utf-8").splitlines()[0]
         if "python3" in first:
@@ -322,14 +326,25 @@ def installer_dry_run():
 def session_foundation():
     greetd = (REPO / "system/services/greetd.toml").read_text(encoding="utf-8")
     greeter_launcher = (REPO / "desktop/greeter/start-greeter").read_text(encoding="utf-8")
+    greeter_stage = (REPO / "installation/stages/greeter.py").read_text(encoding="utf-8")
     packages = (REPO / "system/packages/desktop-shell.official.txt").read_text(encoding="utf-8").splitlines()
     mappings = (REPO / "deployment/mappings.tsv").read_text(encoding="utf-8")
     if "initial_session" in greetd:
         fail("session foundation", "default greetd config must not enable an initial autologin session")
-    if 'command = "cage -s -- /usr/share/infinity-os/greeter/start-greeter"' not in greetd or "regreet" not in greeter_launcher or "cage" not in packages:
+    if 'command = "cage -s -- /usr/lib/infinity-os/start-greeter"' not in greetd or "regreet" not in greeter_launcher or "cage" not in packages:
         fail("session foundation", "ReGreet must run inside the packaged Cage compositor")
-    if "usr/share/infinity-os/wallpapers/nocturne.svg" not in mappings:
-        fail("session foundation", "greeter wallpaper is not deployed")
+    greeter_sources = (
+        "desktop/greeter/regreet.toml",
+        "desktop/greeter/regreet.css",
+        "desktop/greeter/start-greeter",
+        "desktop/greeter/shell.qml",
+        "system/services/greetd.toml",
+        "desktop/wallpapers/nocturne.svg",
+    )
+    if any(source in mappings for source in greeter_sources):
+        fail("session foundation", "greeter files must be owned only by the dedicated greeter stage")
+    if any(source not in greeter_stage for source in greeter_sources):
+        fail("session foundation", "dedicated greeter stage omits a required greeter source")
     boot = (REPO / "system/boot/infinity.conf").read_text(encoding="utf-8")
     if "@ROOT_UUID@" not in boot or "@MICROCODE_IMAGE@" not in boot:
         fail("session foundation", "boot template must expose root UUID and CPU microcode placeholders")

@@ -35,8 +35,17 @@ ShellRoot {
                     screen: modelData
                     visible: !specialWorkspaceActive
                     onAppearanceRequested: togglePanel("appearance")
+                    onCalendarRequested: togglePanel("calendar")
                     onControlRequested: togglePanel("control")
                     onLauncherRequested: togglePanel("launcher")
+                    onNetworkRequested: togglePanel("network")
+                }
+
+                CalendarSurface {
+                    id: calendarSurface
+                    anchorWindow: rail
+                    panelVisible: !specialWorkspaceActive && activePanel === "calendar"
+                    onDismissRequested: closePanels()
                 }
 
                 ControlSurface {
@@ -52,6 +61,13 @@ ShellRoot {
                     panelVisible: !specialWorkspaceActive && activePanel === "launcher"
                     onDismissRequested: closePanels()
                     onAppearanceRequested: activePanel = "appearance"
+                }
+
+                NetworkSurface {
+                    id: networkSurface
+                    anchorWindow: rail
+                    panelVisible: !specialWorkspaceActive && activePanel === "network"
+                    onDismissRequested: closePanels()
                 }
 
                 AppearanceSurface {

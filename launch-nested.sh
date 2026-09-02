@@ -89,7 +89,7 @@ mkdir -p \
   "$SANDBOX_RUNTIME_STORAGE"
 chmod 700 "$SANDBOX_RUNTIME_STORAGE"
 exec {RUNTIME_FD}<"$SANDBOX_RUNTIME_STORAGE"
-SANDBOX_RUNTIME_DIR="/proc/self/fd/$RUNTIME_FD"
+SANDBOX_RUNTIME_DIR="/proc/$$/fd/$RUNTIME_FD"
 SANDBOX_WAYLAND_LINK=""
 if [[ $HOST_WAYLAND_DISPLAY != /* ]]; then
   SANDBOX_WAYLAND_LINK="$SANDBOX_RUNTIME_STORAGE/$HOST_WAYLAND_DISPLAY"
@@ -255,9 +255,9 @@ with open(sys.argv[1], encoding="utf-8") as handle:
 actual = {(item.get("modmask"), str(item.get("key")), item.get("description")) for item in bindings}
 for workspace in range(1, 10):
     key = str(workspace)
-    if (8, key, f"Switch to workspace {key}") not in actual:
+    if (64, key, f"Switch to workspace {key}") not in actual:
         raise SystemExit(1)
-    if (9, key, f"Move window to workspace {key}") not in actual:
+    if (65, key, f"Move window to workspace {key}") not in actual:
         raise SystemExit(1)
 PY
 

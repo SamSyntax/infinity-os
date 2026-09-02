@@ -4,3 +4,5 @@ ControlSurface 1.0 ControlSurface.qml
 LauncherSurface 1.0 LauncherSurface.qml
 OsdSurface 1.0 OsdSurface.qml
 AppearanceSurface 1.0 AppearanceSurface.qml
+NetworkSurface 1.0 NetworkSurface.qml
+CalendarSurface 1.0 CalendarSurface.qml

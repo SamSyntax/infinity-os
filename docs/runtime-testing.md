@@ -14,18 +14,18 @@ Run the complete automated desktop smoke check from the repository root:
 
 The launcher creates a unique run under `.runtime/nested/`, deploys repository-managed user files into that run's fake home, applies the initial theme there, and starts a separate D-Bus session and Hyprland process group. It clears the host Hyprland signature and stale NVIDIA driver-selection variables before launch. `INFINITY_TARGET_ROOT` makes Quickshell theme and wallpaper commits write back into the fake root instead of `/home/$USER`.
 
-Hyprland's IPC socket path cannot fit beneath the repository's full absolute path. The launcher opens the repository runtime directory once and gives children the short inherited path `/proc/self/fd/<number>`. Hyprland, D-Bus, dconf, and Quickshell still create their runtime data under `.runtime/nested/`, and the harness creates no runtime alias outside the repository. For a relative `WAYLAND_DISPLAY`, the host Wayland socket is linked into the isolated runtime so the nested compositor can communicate bidirectionally with the host compositor; no host configuration file is changed.
+Hyprland's IPC socket path cannot fit beneath the repository's full absolute path. The launcher opens the repository runtime directory once and gives children the short stable path `/proc/<launcher-pid>/fd/<number>`. Qualifying the descriptor with the launcher's PID matters: D-Bus children may reuse the same descriptor number, while the launcher keeps its original directory descriptor open for the session. Hyprland, D-Bus, dconf, and Quickshell therefore create their runtime data under `.runtime/nested/`, and the harness creates no runtime alias outside the repository. For a relative `WAYLAND_DISPLAY`, the host Wayland socket is linked into the isolated runtime so the nested compositor can communicate bidirectionally with the host compositor; no host configuration file is changed.
 
 Smoke mode verifies:
 
 1. exactly one nested Hyprland signature and one sandbox Quickshell instance exist;
 2. Hyprland reports no configuration errors and does not report `llvmpipe` or `softpipe`;
-3. all Alt+1…9 and Alt+Shift+1…9 bindings are active;
+3. all Super+1…9 and Super+Shift+1…9 bindings are active;
 4. a signature-qualified IPC action switches only the nested compositor to workspace 2;
 5. applying a second theme changes the sandbox theme identity, Quickshell logs the in-memory reload, and neither Hyprland nor Quickshell exits;
 6. the captured host workspace number and live theme file remain unchanged.
 
-Success prints three `ok:` lines and exits 0. Failure names the failed assertion and retains the run directory. Relevant files include `hyprland.log`, `quickshell.log`, `systeminfo.txt`, `binds.json`, and the before/after theme hashes. The check proves desktop runtime behavior; it does not exercise hypridle, hyprlock authentication, greetd, or system services because those host-affecting integrations are deliberately disabled when `INFINITY_NESTED=1`. The navbar LOCK action is disabled in nested mode so it cannot lock the host session.
+Success prints three `ok:` lines and exits 0. Failure names the failed assertion and retains the run directory. Relevant files include `hyprland.log`, `quickshell.log`, `systeminfo.txt`, `binds.json`, and the before/after theme hashes. The check proves desktop runtime behavior; it does not exercise hypridle, hyprlock authentication, greetd, or system services because those host-affecting integrations are deliberately disabled when `INFINITY_NESTED=1`. The navbar LOCK action is disabled so it cannot lock the host session, and network gateway probes are suppressed so nested visual checks do not generate host traffic.
 
 For interactive inspection, run:
 

@@ -10,23 +10,54 @@ PanelWindow {
     property bool primaryActive: true
     property int grainFrame: 0
     property int wallpaperRevision: 0
+    property string primaryWallpaperId: Services.Wallpaper.currentWallpaperId
+    property string secondaryWallpaperId: ""
+    property string primaryPendingId: ""
+    property string secondaryPendingId: ""
+    property string primaryPendingSource: ""
+    property string secondaryPendingSource: ""
+    property int wallpaperRequestGeneration: 0
+    property int primaryLoadGeneration: -1
+    property int secondaryLoadGeneration: -1
     readonly property string wallpaperPath: Quickshell.env("HOME") + "/.local/share/infinity-os/current-wallpaper.svg"
     readonly property string effectiveWallpaperPath: Services.Wallpaper.previewPath.length > 0 ? Services.Wallpaper.previewPath : wallpaperPath
+    readonly property bool wallpaperMotionEnabled: !Services.ShellState.reducedMotion && Services.ShellState.motionScale > 0
 
     function wallpaperUrl(path) {
         return "file://" + path + "?revision=" + wallpaperRevision;
     }
 
-    function refreshWallpaper(path) {
+    function refreshWallpaper(path, wallpaperId) {
         if (path.length === 0)
             return;
         wallpaperRevision += 1;
+        wallpaperRequestGeneration += 1;
+        const nextSource = wallpaperUrl(path);
         if (primaryActive) {
-            secondaryWallpaper.source = wallpaperUrl(path);
+            secondaryPendingId = wallpaperId;
+            secondaryPendingSource = nextSource;
+            secondaryLoadGeneration = wallpaperRequestGeneration;
+            secondaryWallpaper.source = nextSource;
         } else {
-            primaryWallpaper.source = wallpaperUrl(path);
+            primaryPendingId = wallpaperId;
+            primaryPendingSource = nextSource;
+            primaryLoadGeneration = wallpaperRequestGeneration;
+            primaryWallpaper.source = nextSource;
         }
-        primaryActive = !primaryActive;
+    }
+
+    function activatePrimary() {
+        if (primaryLoadGeneration !== wallpaperRequestGeneration || String(primaryWallpaper.source) !== primaryPendingSource)
+            return;
+        primaryWallpaperId = primaryPendingId;
+        primaryActive = true;
+    }
+
+    function activateSecondary() {
+        if (secondaryLoadGeneration !== wallpaperRequestGeneration || String(secondaryWallpaper.source) !== secondaryPendingSource)
+            return;
+        secondaryWallpaperId = secondaryPendingId;
+        primaryActive = false;
     }
 
     color: Services.Theme.background
@@ -52,6 +83,10 @@ PanelWindow {
         source: wallpaperFile.loaded ? root.wallpaperUrl(root.wallpaperPath) : Qt.resolvedUrl("../assets/nocturne.svg")
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
+        onStatusChanged: {
+            if (status === Image.Ready)
+                root.activatePrimary();
+        }
         opacity: root.primaryActive ? 1 : 0
         scale: root.primaryActive ? 1 : 1.035
         Behavior on opacity {
@@ -73,6 +108,10 @@ PanelWindow {
         anchors.fill: parent
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
+        onStatusChanged: {
+            if (status === Image.Ready)
+                root.activateSecondary();
+        }
         opacity: root.primaryActive ? 0 : 1
         scale: root.primaryActive ? 1.035 : 1
         Behavior on opacity {
@@ -91,8 +130,12 @@ PanelWindow {
 
     Connections {
         target: Services.Wallpaper
-        function onPreviewPathChanged() {
-            root.refreshWallpaper(root.effectiveWallpaperPath);
+        function onPreviewWallpaperChanged() {
+            root.refreshWallpaper(root.effectiveWallpaperPath, Services.Wallpaper.effectiveWallpaperId);
+        }
+        function onCurrentWallpaperIdChanged() {
+            if (Services.Wallpaper.previewWallpaper === null)
+                root.refreshWallpaper(root.wallpaperPath, Services.Wallpaper.currentWallpaperId);
         }
     }
 
@@ -104,7 +147,47 @@ PanelWindow {
         onFileChanged: {
             reload();
             if (Services.Wallpaper.previewPath.length === 0)
-                root.refreshWallpaper(root.wallpaperPath);
+                root.refreshWallpaper(root.wallpaperPath, Services.Wallpaper.effectiveWallpaperId);
+        }
+    }
+
+    Components.WallpaperArchiveTable {
+        anchors.fill: parent
+        opacity: root.primaryActive ? 1 : 0
+        scale: root.primaryActive ? 1 : 1.035
+        wallpaperId: root.primaryWallpaperId
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Services.Theme.duration * 2
+                easing.type: Easing.InOutCubic
+            }
+        }
+        Behavior on scale {
+            NumberAnimation {
+                duration: Services.Theme.duration * 3
+                easing.type: Easing.OutCubic
+            }
+        }
+    }
+
+    Components.WallpaperArchiveTable {
+        anchors.fill: parent
+        opacity: root.primaryActive ? 0 : 1
+        scale: root.primaryActive ? 1.035 : 1
+        wallpaperId: root.secondaryWallpaperId
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Services.Theme.duration * 2
+                easing.type: Easing.InOutCubic
+            }
+        }
+        Behavior on scale {
+            NumberAnimation {
+                duration: Services.Theme.duration * 3
+                easing.type: Easing.OutCubic
+            }
         }
     }
 
@@ -140,7 +223,7 @@ PanelWindow {
     Timer {
         interval: 140
         repeat: true
-        running: !Services.ShellState.reducedMotion
+        running: root.wallpaperMotionEnabled
         onTriggered: {
             root.grainFrame += 1;
             grain.requestPaint();
@@ -156,10 +239,10 @@ PanelWindow {
         y: -1
 
         NumberAnimation on y {
-            duration: Services.ShellState.reducedMotion ? 0 : 9000
+            duration: Math.max(1, Math.round(9000 * Services.ShellState.motionScale))
             from: -1
             loops: Animation.Infinite
-            running: !Services.ShellState.reducedMotion
+            running: root.wallpaperMotionEnabled
             to: root.height
         }
     }

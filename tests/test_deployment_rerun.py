@@ -42,9 +42,14 @@ def main():
         manifest = json.loads((home / ".local/share/infinity-os/deployment-manifest.json").read_text(encoding="utf-8"))
         if not manifest["files"]:
             raise SystemExit("deployment manifest contains no files")
-        if not (root / "usr/share/infinity-os/wallpapers/nocturne.svg").is_file():
-            raise SystemExit("greeter wallpaper was not deployed")
-    print("ok: deployment rerun, backup, manifest, and system asset")
+        retired_greeter_targets = (
+            root / "etc/greetd/config.toml",
+            root / "usr/lib/infinity-os/start-greeter",
+            root / "usr/share/infinity-os/wallpapers/nocturne.svg",
+        )
+        if any(path.exists() or path.is_symlink() for path in retired_greeter_targets):
+            raise SystemExit("generic deployment wrote a dedicated greeter-stage target")
+    print("ok: deployment rerun, backup, manifest, and greeter-stage isolation")
 
 
 if __name__ == "__main__":

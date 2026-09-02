@@ -19,14 +19,14 @@ This file is the canonical compatibility inventory. `docs/compatibility/hyprland
 | Hyprland | Super+F | fullscreen | fullscreen focused window | `hl.dsp.window.fullscreen` | preserved |
 | Hyprland | Super+R | apps menu | open app launcher | `fuzzel` | official Arch package replaces AUR-only Walker |
 | Infinity distro | Super+Shift+M | distro-only session exit | exit manual Hyprland preview | `hyprctl dispatch exit` | new non-conflicting VM preview escape hatch |
-| Infinity distro | Alt+1…9 | workspace selection | switch directly to numbered workspace | `hl.dsp.focus({ workspace = N })` | uses the configured `mainMod`; avoids preserved Super+4 layout binding |
-| Infinity distro | Alt+Shift+1…9 | move focused window | move window to numbered workspace | `hl.dsp.window.move({ workspace = N })` | paired with Alt workspace selection |
+| Infinity distro | Super+1…9 | workspace selection | switch directly to numbered workspace | `hl.dsp.focus({ workspace = N })` | requested primary workspace navigation; Super+4 layout intent moved to Super+Ctrl+4 |
+| Infinity distro | Super+Shift+1…9 | move focused window | move window to numbered workspace | `hl.dsp.window.move({ workspace = N })` | paired with Super workspace selection |
 | Hyprland | Super+mouse_down/up | cursor zoom | zoom in/out | cursor zoom helper | preserved |
 | Hyprland | Super+equal/minus/KP_ADD/KP_SUBTRACT | cursor zoom | keyboard zoom in/out | cursor zoom helper | preserved |
 | Hyprland | Super+Shift+mouse_up/down/minus/KP_SUBTRACT, Super+Ctrl+1 | reset cursor zoom | return zoom to 1 | cursor zoom reset helper | preserved |
 | Hyprland | Super+V | `cliphist list | walker --dmenu | cliphist decode | wl-copy` | clipboard history picker | `cliphist list | fuzzel --dmenu | cliphist decode | wl-copy` | intent preserved with official Arch launcher |
 | Hyprland | Super+Z | quickshell toggle | toggle desktop shell | repo path-compatible `quickshell kill ... || quickshell ...` | preserved |
-| Hyprland | Super+4 | `hyprctl dispatch layoutmsg orientationleft && hyprctl dispatch layoutmsg swapwithmaster` | orient master left | same command | preserved |
+| Hyprland | Super+4 | `hyprctl dispatch layoutmsg orientationleft && hyprctl dispatch layoutmsg swapwithmaster` | orient master left | same command on Super+Ctrl+4 | intent preserved while freeing Super+4 for workspace selection |
 | Hyprland | Super+Shift+S | final effective screenshot command `omarchy-capture-screenshot` | capture/edit screenshot | `infinity-capture-screenshot` | repository replacement supplied |
 | Hyprland | Super+Shift+G | toggle floating | toggle focused window float | `hl.dsp.window.float` | preserved |
 | Hyprland | Super+U | special workspace | toggle scratch/special workspace | `hl.dsp.workspace.toggle_special("special")` | preserved |

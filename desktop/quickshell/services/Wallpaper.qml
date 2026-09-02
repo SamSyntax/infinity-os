@@ -14,6 +14,7 @@ Singleton {
     property var previewWallpaper: null
     readonly property string assetRoot: Quickshell.env("INFINITY_SOURCE_ROOT") || Quickshell.env("HOME") + "/.local/share/infinity-os/runtime"
     readonly property string currentWallpaperId: stateAdapter.wallpaperId
+    readonly property string effectiveWallpaperId: previewWallpaper === null ? currentWallpaperId : previewWallpaper.id
     readonly property string previewPath: previewWallpaper === null ? "" : assetRoot + "/" + previewWallpaper.path
 
     signal applySucceeded(string wallpaperId)
@@ -70,10 +71,11 @@ Singleton {
         onExited: (exitCode, exitStatus) => {
             root.applying = false;
             if (exitCode === 0) {
+                const appliedWallpaperId = root.pendingWallpaperId;
+                stateAdapter.wallpaperId = appliedWallpaperId;
+                root.pendingWallpaperId = "";
                 stateFile.reload();
                 root.clearPreview();
-                const appliedWallpaperId = root.pendingWallpaperId;
-                root.pendingWallpaperId = "";
                 root.applySucceeded(appliedWallpaperId);
             } else {
                 root.clearPreview();

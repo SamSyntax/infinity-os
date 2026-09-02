@@ -36,7 +36,8 @@ def main() -> None:
     require("hyprctl dispatch workspace 5" not in nested, "nested launcher still changes the host workspace")
     require("hyprctl -i" in nested, "nested smoke commands are not qualified by instance signature")
     require('exec {RUNTIME_FD}<"$SANDBOX_RUNTIME_STORAGE"' in nested, "nested launcher lacks a repository-backed short IPC path")
-    require('SANDBOX_RUNTIME_DIR="/proc/self/fd/$RUNTIME_FD"' in nested, "nested launcher does not use the inherited runtime descriptor")
+    require('SANDBOX_RUNTIME_DIR="/proc/$$/fd/$RUNTIME_FD"' in nested, "nested launcher does not use a launcher-qualified runtime descriptor")
+    require("/proc/self/fd" not in nested, "nested launcher exposes a child-relative runtime path to DBus services")
     require("/run/user/$UID/.i" not in nested, "nested launcher writes a runtime alias outside the repository")
     require("llvmpipe" in nested and "softpipe" in nested, "nested smoke does not reject software rendering")
     require("theme-before.sha256" in nested and "theme-after.sha256" in nested, "nested smoke does not prove sandbox-only theme mutation")
@@ -48,6 +49,7 @@ def main() -> None:
     require('"--target-root", targetRoot' in theme, "Theme apply omits the explicit target root")
     require('console.info("Infinity theme loaded:", currentThemeId)' in theme, "Theme service lacks an observable reload signal")
     require('"--target-root", Theme.targetRoot' in wallpaper, "Wallpaper apply omits the explicit target root")
+    require("effectiveWallpaperId" in wallpaper and "previewWallpaper.id" in wallpaper, "runtime wallpaper identity does not follow previews")
 
     autostart = (REPO / "desktop/hypr/modules/autostart.lua").read_text(encoding="utf-8")
     require('os.getenv("INFINITY_NESTED") == "1"' in autostart, "nested sessions lack an explicit autostart branch")
@@ -57,10 +59,12 @@ def main() -> None:
     bindings = (REPO / "desktop/hypr/modules/bindings.lua").read_text(encoding="utf-8")
     for expected in [
         "for workspace = 1, 9 do",
-        'o.replace("ALT + " .. key, "Switch to workspace " .. key, hl.dsp.focus({ workspace = key }))',
-        'o.replace("ALT + SHIFT + " .. key, "Move window to workspace " .. key, hl.dsp.window.move({ workspace = key }))',
+        'o.replace("SUPER + " .. key, "Switch to workspace " .. key, hl.dsp.focus({ workspace = key }))',
+        'o.replace("SUPER + SHIFT + " .. key, "Move window to workspace " .. key, hl.dsp.window.move({ workspace = key }))',
+        'o.replace("SUPER + CTRL + 4", "Master layout left"',
     ]:
         require(expected in bindings, f"numeric workspace binding generator omitted {expected}")
+    require('o.replace("SUPER + 4", "Master layout left"' not in bindings, "Super+4 still overrides workspace selection")
     require('if os.getenv("INFINITY_NESTED") ~= "1" then' in bindings, "Quickshell toggle lacks a nested supervision guard")
     require('quickshell_start = quickshell_start .. " --daemonize"' in bindings, "production Quickshell toggle lost daemon mode")
     require('" .. quickshell_start)' in bindings, "Quickshell toggle does not use the supervised nested command")
@@ -68,6 +72,39 @@ def main() -> None:
     rail = (REPO / "desktop/quickshell/surfaces/RailSurface.qml").read_text(encoding="utf-8")
     require('readonly property bool nestedSession: Quickshell.env("INFINITY_NESTED") === "1"' in rail, "navbar lacks nested-session state")
     require("enabled: !root.nestedSession && !lockProcess.running" in rail, "nested navbar can invoke host session locking")
+    require("onTapped: root.networkRequested()" in rail and "onTapped: root.calendarRequested()" in rail, "navbar network/calendar controls are not directly tappable")
+
+    shell = (REPO / "desktop/quickshell/shell.qml").read_text(encoding="utf-8")
+    for panel in ["network", "calendar"]:
+        require(f'on{panel.title()}Requested: togglePanel("{panel}")' in shell, f"{panel} action bypasses the exclusive panel controller")
+        require(f'activePanel === "{panel}"' in shell, f"{panel} surface lacks active-panel visibility")
+    require(shell.count("onDismissRequested: closePanels()") >= 4, "new runtime panels do not share outside/Escape dismissal")
+
+    workspaces = (REPO / "desktop/quickshell/services/Workspaces.qml").read_text(encoding="utf-8")
+    activate = workspaces.split("function activate(workspaceId)", 1)[1].split("function specialActiveForScreen", 1)[0]
+    require('Hyprland.dispatch("workspace " + workspaceId)' in activate and ".activate()" not in activate, "runtime workspace taps depend on tracked workspace objects")
+
+    network = (REPO / "desktop/quickshell/services/Network.qml").read_text(encoding="utf-8")
+    require('["/usr/bin/nmcli", "-g", "IP4.GATEWAY", "device", "show", gatewayRequestDevice]' in network, "runtime gateway lookup is not a fixed argv request")
+    require('["/usr/bin/ping", "-n", "-q", "-c", "3", "-W", "1", pingRequestGateway]' in network, "runtime gateway probe is not a fixed argv request")
+    require('readonly property bool probesAllowed: Quickshell.env("INFINITY_NESTED") !== "1"' in network, "nested runtime can probe the host network")
+    require('readonly property var parserEnvironment: ({ LC_ALL: "C", LANG: "C" })' in network, "network process output is locale-dependent")
+    require("function isValidDevice(candidate)" in network and "function isValidIpv4(candidate)" in network, "runtime network provider values are not validated")
+    require("function requestRefresh()" in network and "function requestConnection(requestGeneration)" in network, "runtime network refresh stages are not sequenced")
+    require("gatewayProcess.running || pingProcess.running" in network, "runtime network probes do not mutually exclude each other")
+    require("gatewayRequestGeneration !== root.probeGeneration" in network and "requestGeneration !== probeGeneration" in network, "runtime network probes can publish stale generations")
+    probe_timer = network.rsplit("Timer {", 1)[1]
+    require("requestPing" not in probe_timer and "scheduleProbeCycle" in probe_timer, "runtime cadence launches overlapping probe stages")
+    for public_target in ["1.1.1.1", "8.8.8.8", "google.com", "cloudflare.com"]:
+        require(public_target not in network, f"runtime network service probes public target {public_target}")
+
+    wallpaper_table = (REPO / "desktop/quickshell/components/WallpaperArchiveTable.qml").read_text(encoding="utf-8")
+    require("!Services.ShellState.reducedMotion" in wallpaper_table, "wallpaper row motion ignores reduced-motion state")
+    require("Services.ShellState.motionScale > 0" in wallpaper_table and "Services.Theme.duration > 0" in wallpaper_table, "wallpaper row motion ignores shared motion timing")
+    require("onRunningChanged" in wallpaper_table and "rowDrift.x = 0" in wallpaper_table and "rowVisual.opacity = 1" in wallpaper_table, "wallpaper rows retain stale transforms when motion stops")
+    wallpaper_surface = (REPO / "desktop/quickshell/surfaces/WallpaperSurface.qml").read_text(encoding="utf-8")
+    require("status === Image.Ready" in wallpaper_surface and "wallpaperRequestGeneration" in wallpaper_surface, "runtime wallpaper crossfade activates before the replacement is ready")
+    require("wallpaperMotionEnabled" in wallpaper_surface and "Services.ShellState.motionScale > 0" in wallpaper_surface, "runtime grain/scanline motion ignores zero motion scale")
 
     qemu_path = REPO / "bin/infinity-qemu-smoke"
     require(qemu_path.is_file(), "QEMU smoke launcher is missing")
@@ -99,7 +136,7 @@ def main() -> None:
     require("bin/infinity-capture-screenshot\t.local/bin/infinity-capture-screenshot\t0755\tno" in mappings, "screenshot binding command is not deployed")
 
     runtime_docs = (REPO / "docs/runtime-testing.md").read_text(encoding="utf-8")
-    for expected in ["Nested Hyprland", "QEMU", "/proc/self/fd", "Neither harness ever needs root", "bootable qcow2"]:
+    for expected in ["Nested Hyprland", "QEMU", "/proc/<launcher-pid>/fd", "Neither harness ever needs root", "bootable qcow2"]:
         require(expected in runtime_docs, f"runtime testing documentation omitted {expected}")
 
     print("ok: isolated nested and accelerated QEMU harness contracts")

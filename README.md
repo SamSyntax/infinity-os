@@ -41,7 +41,13 @@ Use a virtual machine or sacrificial Arch installation. The current installer do
    ./install.sh --confirm --target-root /mnt/infinity-root --target-user youruser --stage services
    ```
    The confirmed command must be selected by itself and requests sudo when needed. It validates every operation before creating the installer log, then creates missing `*.target.wants` directories and fixed links for NetworkManager, Bluetooth, and power-profiles-daemon. It never invokes a service manager or starts a process, rejects `/`, active systemd runtime markers, and privileged target paths that are not root-owned or are group/world-writable, and preserves conflicting files or links for manual review. The installed unit files under `/usr/lib/systemd/system/` must already exist, so run this only after packages have been installed into that offline root. Greetd, SSH, portals, UPower, PipeWire, WirePlumber, and hypridle remain deferred.
-8. Apply a minimal manual Hyprland + Quickshell preview only inside the already bootable VM:
+8. Install the login greeter only on the live, booted Arch VM/system:
+   ```sh
+   ./install.sh --plan --stage greeter
+   ./install.sh --confirm --stage greeter
+   ```
+   Plan mode writes nothing and needs no root privileges. Confirmed apply must be launched as a normal user from a reviewed source copy whose path and required files are root-owned and not group/world-writable; the user-owned development checkout is rejected before sudo. It must be selected by itself, accepts only the resolved root `/`, hashes the fixed greeter inputs, and asks sudo to execute only a revalidated ephemeral root-owned snapshot. It validates all packages, executables, the `greeter` account, Hyprland session descriptor, target paths, and display-manager conflicts before writing the installer log. It installs the tuigreet recovery configuration first, the primary greetd configuration after all visual assets, and the exact `display-manager.service` link last. Existing managed files are backed up under `/var/lib/infinity-os/backups/greeter/`; failures roll back completed writes in reverse order, retaining a backup if restoration itself fails. It never calls `systemctl`, so greetd is selected for the next boot without interrupting the current session. Login remains greetd's regular package-provided username/password flow; the stage does not customize PAM or add autologin. Filesystem behavior is repository-tested, but real authentication and login handoff still require QEMU verification.
+9. Apply a minimal manual Hyprland + Quickshell preview only inside the already bootable VM:
    ```sh
    ./install.sh --confirm --stage preview --target-user youruser
    ```
@@ -52,13 +58,13 @@ Use a virtual machine or sacrificial Arch installation. The current installer do
    Hyprland --config "$HOME/.config/hypr/hyprland.lua"
    ```
    Use `Super+Return` to open Ghostty and `Super+Shift+M` to exit Hyprland back to the TTY. VM 3D acceleration may be required for Hyprland to start.
-9. Apply the older staged repository deployment only inside a mounted test root after reviewing the plan:
+10. Apply the older staged repository deployment only inside a mounted test root after reviewing the plan:
    ```sh
    ./install.sh --confirm --target-root /mnt/infinity-root --target-user youruser --stage preflight --stage themes --stage deploy --stage validate
    ```
-   This only applies the selected deployment stages. The default `--confirm` run fails fast because the full stage list still includes plan-only stages such as base, hardware, wayland, desktop-shell, applications, boot, and greeter. Use a writable mounted target root; existing mapped user configuration is copied to `~/.local/share/infinity-os/backups/` before replacement. The deployment record is `~/.local/share/infinity-os/deployment-manifest.json`.
+   This only applies the selected deployment stages. The default `--confirm` run fails fast because the full stage list still includes plan-only stages such as base, hardware, wayland, desktop-shell, applications, and boot. Use a writable mounted target root; existing mapped user configuration is copied to `~/.local/share/infinity-os/backups/` before replacement. The deployment record is `~/.local/share/infinity-os/deployment-manifest.json`.
 
-The installer never partitions disks. Plan mode is the safe development default. Apply mode currently works for `preflight`, `themes`, `deploy`, `validate`, the standalone offline-root-only `services` stage, and the standalone live-root-only `packages` and `preview` stages; the remaining stages are plan-only and make default `--confirm` fail before any writes.
+The installer never partitions disks. Plan mode is the safe development default. Apply mode currently works for `preflight`, `themes`, `deploy`, `validate`, the standalone offline-root-only `services` stage, and the standalone live-root-only `packages`, `greeter`, and `preview` stages; the remaining stages are plan-only and make default `--confirm` fail before any writes.
 
 ## Isolated runtime testing
 
@@ -82,9 +88,11 @@ For VM capability checks, run `./bin/infinity-qemu-smoke --check`. To boot an ex
 ./install.sh --plan --target-root /tmp --target-user testuser
 ./install.sh --plan --stage packages
 ./install.sh --plan --target-root /tmp --stage services
+./install.sh --plan --stage greeter
 ./install.sh --plan --stage preview --target-user testuser
 ./install.sh --confirm --stage packages
 ./install.sh --confirm --target-root /mnt/infinity-root --target-user testuser --stage services
+./install.sh --confirm --stage greeter
 ./install.sh --confirm --target-root /tmp/infinity-root --target-user testuser --stage preflight --stage themes --stage deploy --stage validate
 ./bin/infinity-validate
 ./bin/infinity-theme list
@@ -97,11 +105,11 @@ For VM capability checks, run `./bin/infinity-qemu-smoke --check`. To boot an ex
 
 ## Current status
 
-- Implemented and repository-tested: staged plan/apply CLI, standalone live-root-only official package stage, standalone offline-root service enablement, live-root-only preview stage, grouped package manifests, symlink-safe deployment/logging with backups and a manifest, modular Hyprland Lua, theme schema/rollback CLI, six original archive-style themes and wallpapers, and one validation command.
-- Implemented and repository-tested: a grouped top navbar with live Hyprland workspaces, CPU/memory, NetworkManager, UPower, date/time, launcher, controls, and real lock action; a monitor-local fullscreen appearance archive with preview/commit/cancel; atomic theme and wallpaper flows; reduced-motion-aware animated grain, scanline, and wallpaper transitions; special-workspace shell suppression; themed hyprlock animations; and a non-interactive animated greeter layer behind ReGreet.
-- Template-only, not applied or VM-tested yet: systemd-boot/Plymouth rendering, graphics-driver selection, greetd/ReGreet authentication, and the full hypridle/hyprlock lifecycle. The service-link writer is repository-tested but its boot-time activation still needs a VM.
+- Implemented and repository-tested: staged plan/apply CLI, standalone live-root-only official package and greeter stages, standalone offline-root service enablement, live-root-only preview stage, grouped package manifests, symlink-safe deployment/logging with backups and manifests, modular Hyprland Lua, theme schema/rollback CLI, six original archive-style themes and wallpapers, and one validation command.
+- Implemented and repository-tested: a slim grouped top navbar with live Hyprland workspaces, concise UPower state, geometric network status, date/time, launcher, controls, and real lock action; exclusive live-network and month-calendar popups; a monitor-local fullscreen appearance archive with preview/commit/cancel; atomic theme and wallpaper flows; crop-aware animated archival wallpaper rows; reduced-motion-aware grain, scanline, and wallpaper transitions; special-workspace shell suppression; themed hyprlock animations; and a non-interactive animated greeter layer behind ReGreet.
+- Implemented but not applied or VM-tested: greetd/ReGreet file deployment, display-manager selection, and recovery rollback. Template-only or still awaiting system integration: systemd-boot/Plymouth rendering, graphics-driver selection, greetd/ReGreet authentication and session handoff, and the full hypridle/hyprlock lifecycle. Service and display-manager links are repository-tested, but boot-time activation still needs a VM.
 - Mocked/placeholder backends: Bluetooth, media, and unsolicited OSD system events. Launcher indexing is curated rather than desktop-file driven. Network, battery/power, CPU/memory, and Hyprland workspace state are live and show explicit unavailable states when their providers are absent.
-- Host-tested: isolated nested Hyprland/Quickshell startup, ALT workspace switching, sandbox-only theme reload, process survival, host-state preservation, and the KVM/virgl QEMU launch path. Guest boot, greetd/ReGreet, hyprlock authentication, and enabled-service startup still require a bootable VM test image.
+- Host-tested: isolated nested Hyprland/Quickshell startup, Super workspace switching, sandbox-only theme reload, process survival, host-state preservation, and the KVM/virgl QEMU launch path. Guest boot, greetd/ReGreet, hyprlock authentication, and enabled-service startup still require a bootable VM test image.
 
 ## Learn the implementation
 

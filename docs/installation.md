@@ -6,7 +6,7 @@
 
 Apply-capable stages:
 
-`preflight,packages,services,themes,deploy,validate,preview`
+`preflight,packages,services,greeter,themes,deploy,validate,preview`
 
 Plan mode:
 
@@ -22,7 +22,7 @@ Apply mode requires `--confirm` and should be run only on a target VM/system:
 
 If `--confirm` includes any plan-only stage, the installer exits before creating its log directory or writing files and names the unsupported stages in the error. Use `--plan` for the full stage list.
 
-The two package-changing apply stages, `packages` and `preview`, must each be selected by themselves. The offline `services` apply stage is also standalone. These boundaries prevent package transactions, offline system links, deployment, boot, greeter, and theme writes from sharing one failure domain.
+The two package-changing apply stages, `packages` and `preview`, must each be selected by themselves. The offline `services` stage and live-root `greeter` stage are also standalone. These boundaries prevent package transactions, system links, display-manager selection, deployment, boot, and theme writes from sharing one failure domain.
 
 No stage partitions disks. Hardware and graphics stages report decisions and package groups; they do not assume NVIDIA/AMD/Intel globally.
 
@@ -98,6 +98,57 @@ This stage creates missing `multi-user.target.wants` and `bluetooth.target.wants
 
 Recovery: validation failures happen before all writes, including the log. If a low-level I/O failure occurs after link creation starts, already-correct links remain; fix the reported target filesystem problem and rerun the same command. Conflicting target entries are never removed automatically. Rejecting `/` and visible runtime markers is a practical offline check, not proof across every mount namespace, so the operator must still ensure the target is not currently booted or managed elsewhere.
 
+## Live-root greeter stage
+
+The `greeter` stage prepares the running Arch system to show Infinity's login screen on the next boot. **greetd** is the login daemon: it owns authentication and session startup. **Cage** is the small Wayland compositor used only for the login screen, **ReGreet** is the graphical authentication client inside Cage, and Quickshell draws the non-authentication visual layer behind it. A separate **tuigreet** configuration remains available as a text recovery path.
+
+Plan first as a normal user:
+
+```sh
+./install.sh --plan --stage greeter
+```
+
+This prints the fixed source, target, and mode for every file plus the final display-manager link. It reads repository files only, performs no elevation, and writes nothing.
+
+Apply only on the booted Arch VM or target system:
+
+```sh
+./install.sh --confirm --stage greeter
+```
+
+This command requires root because it writes `/etc`, `/usr`, and `/var/lib`, but it must be launched as a normal user from a previously reviewed, root-owned source copy such as `/opt/infinity-os`. Every path component, source directory, and required file must be root-owned and not group/world-writable; required files must also be single-linked regular files. The user-owned development checkout is intentionally rejected before sudo or target writes because hashes computed from attacker-writable code do not prove trusted provenance.
+
+Before requesting sudo, the installer reads the fixed greeter code and payload set through no-follow file descriptors and records their SHA-256 digests. The privileged bootstrap reopens the already trusted source through one pinned repository descriptor, rechecks ownership, modes, file type, and link count, rejects digest changes, copies only matching bytes into an ephemeral root-owned `0700` snapshot, and executes the canonical command from that snapshot. The snapshot is removed afterward. Root therefore never executes code directly from a writable checkout; direct root greeter apply outside the verified snapshot is rejected.
+
+The resolved target root must be exactly `/`, and `greeter` must be the only selected stage. It does not support an offline `/mnt` root because package/account checks deliberately inspect the running Arch installation. If source trust validation fails, prepare and review a root-owned read-only source copy before retrying. If snapshot verification reports a digest mismatch, inspect that trusted copy for an unexpected concurrent change and rerun the normal-user command; no target or installer-log write has occurred.
+
+Complete preflight happens before the installer log or any greeter file is written. It validates the fixed repository manifest, target paths and existing entries, required package metadata and executables, the package-created `greeter` system account, `/usr/share/wayland-sessions/hyprland.desktop`, `/usr/lib/systemd/system/greetd.service`, and the current display-manager selection. Any existing `display-manager.service` other than the exact greetd link is preserved as a hard conflict; the installer tells the operator to disable or move it manually rather than silently replace another login manager.
+
+The transaction writes in this order:
+
+1. `/etc/greetd/config-tuigreet-recovery.toml` so a text recovery configuration exists first;
+2. `/usr/lib/infinity-os/start-greeter` and the ReGreet, Quickshell, and wallpaper support files;
+3. `/etc/greetd/config.toml` only after all support files exist;
+4. `/etc/systemd/system/display-manager.service -> /usr/lib/systemd/system/greetd.service` as the final mutation.
+
+Existing managed regular files are copied under `/var/lib/infinity-os/backups/greeter/` before replacement, preserving their modes. A failed transaction restores prior files and removes newly created files in reverse order. Backup cleanup happens only after restoration succeeds; if the target filesystem also prevents restoration, the original backup is retained and the installer reports that manual repair is required. An identical rerun reports every entry unchanged and creates no new backups. The installer never invokes `systemctl`, so it does not start, restart, reload, or interrupt the current login/session; the new display manager is selected for the next boot through the exact systemd alias link.
+
+Recovery from a TTY or booted recovery environment requires root privileges. To keep greetd but use the text greeter, review and then copy the retained recovery file over the active config:
+
+```sh
+cp -- /etc/greetd/config-tuigreet-recovery.toml /etc/greetd/config.toml
+```
+
+If greetd itself must be bypassed for the next boot, remove only the reviewed Infinity-created link:
+
+```sh
+rm -- /etc/systemd/system/display-manager.service
+```
+
+These recovery commands write the live system and must be run deliberately as root. Login uses greetd's regular username/password flow through Arch's package-owned `/etc/pam.d/greetd`. The stage does not modify PAM, configure autologin, create users, or add alternative authentication; Arch's PAM file and sysusers definition remain untouched.
+
+Repository tests prove preflight, target isolation, backups, rollback, idempotency, exact file content/modes, and exact link creation in temporary synthetic roots. They do **not** prove that a real password authenticates, graphics initialize, ReGreet starts, or Hyprland launches after login. Those boot and authentication boundaries remain explicitly untested until the QEMU milestone.
+
 ## Manual VM preview stage
 
 The `preview` stage is a small bridge from “repository scaffold” to “manually launchable desktop”. It is for an already bootable vanilla Arch VM with a normal non-root user at `/home/<user>`.
@@ -122,7 +173,7 @@ What this writes:
 
 1. It validates the repository before any package change. Invalid source files stop the run before pacman.
 2. It runs one official package transaction: `/usr/bin/pacman -Syu --needed --noconfirm -- ...`. `-Syu` syncs package databases and upgrades the VM as part of installing the preview packages. `--noconfirm` is acceptable here only because the installer-level `--confirm` is the explicit confirmation gate. The `--` separates pacman options from package names.
-3. It deploys only user mappings under `/home/sam`, such as Hyprland, Quickshell, hyprlock, and hypridle configuration. Existing user files are backed up under `/home/sam/.local/share/infinity-os/backups/` before replacement. It deliberately skips system mappings such as greetd and shared greeter wallpaper.
+3. It deploys only user mappings under `/home/sam`, such as Hyprland, Quickshell, hyprlock, and hypridle configuration. Existing user files are backed up under `/home/sam/.local/share/infinity-os/backups/` before replacement. It does not invoke the dedicated greeter stage or deploy its system-owned files.
 4. It applies the `Signal Archive` theme to user configuration and current wallpaper state.
 5. It writes an installer log under `/var/log/infinity-os/install.log`.
 

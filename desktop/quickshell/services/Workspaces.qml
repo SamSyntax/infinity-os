@@ -42,13 +42,6 @@ Singleton {
     function activate(workspaceId) {
         if (!Number.isInteger(workspaceId) || workspaceId < 1)
             return;
-        const workspaces = Hyprland.workspaces.values;
-        for (let index = 0; index < workspaces.length; index++) {
-            if (workspaces[index].id === workspaceId) {
-                workspaces[index].activate();
-                return;
-            }
-        }
         Hyprland.dispatch("workspace " + workspaceId);
     }
 
